@@ -8,21 +8,47 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-512.png">
-<style>body{margin:0;font-family:-apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;background:#fff;color:#1d4a8a;text-align:center}a{color:#1d4a8a;font-weight:600}</style>
+<style>
+body{margin:0;font-family:-apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;background:#fff;color:#1d4a8a;text-align:center;padding:0 20px;box-sizing:border-box}
+a{color:#1d4a8a;font-weight:600}
+.hint{color:#667;font-size:13px;max-width:320px;margin:12px auto 0}
+</style>
 </head>
 <body>
 <div>
 <img src="icon-512.png" width="120" height="120" alt="ANK"><br>
-<p>Открываю Табель…</p>
-<p><a href="https://claude.ai/artifact/1SiTN1QtQJ7gSZzxUL32Lg">Открыть Табель</a></p>
-<p style="color:#667;font-size:13px">Чтобы добавить на экран «Домой»: «Поделиться» → «На экран „Домой“».<br>Ярлык сам переадресует в Табель.</p>
+<p id="msg">Открываю Табель…</p>
+<p><a id="go" href="https://claude.ai/artifact/1SiTN1QtQJ7gSZzxUL32Lg">Открыть Табель</a></p>
+<p class="hint" id="hint">Чтобы добавить на экран «Домой»: «Поделиться» → «На экран „Домой“». С иконки Табель будет открываться сам и подставлять место, где вы находитесь.</p>
 </div>
 <script>
 // First visit (or ?setup): stay on this page so Safari can add it to the home screen.
-// Every later visit, e.g. from the home screen icon, goes straight to the Табель.
-var T="https://claude.ai/artifact/1SiTN1QtQJ7gSZzxUL32Lg",q=new URLSearchParams(location.search),seen=false;
+// Every later visit, e.g. from the home screen icon: find the location, look up the address,
+// and open the Табель with it in the link (#geo-<lat>-<lng>-<address words>).
+var T="https://claude.ai/artifact/1SiTN1QtQJ7gSZzxUL32Lg";
+var q=new URLSearchParams(location.search),seen=false,done=false;
 try{seen=localStorage.getItem("ank-seen")==="1";localStorage.setItem("ank-seen","1")}catch(e){}
-if(!q.has("setup")&&(seen||q.get("go")==="1"||navigator.standalone)){location.replace(T)}
+function go(hash){if(done)return;done=true;location.replace(T+(hash||""))}
+function num(v){var n=Math.round(v*1e5);return (n<0?"m":"")+Math.abs(n)}
+function slug(s){return String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/,/g," -- ").replace(/[^A-Za-z0-9-]+/g,"-").replace(/-{3,}/g,"--").replace(/^-+|-+$/g,"").slice(0,70).replace(/-+$/,"")}
+function addrOf(a){if(!a)return"";var street=[a.road||a.pedestrian||a.footway||a.square||"",a.house_number||""].filter(Boolean).join(" ");var city=a.city||a.town||a.village||a.municipality||a.suburb||"";return [street,city].filter(Boolean).join(", ")}
+function locateAndGo(){
+  document.getElementById("msg").textContent="Определяю, где вы…";
+  if(!navigator.geolocation){go();return}
+  var timer=setTimeout(function(){go()},9000);
+  navigator.geolocation.getCurrentPosition(function(p){
+    var lat=p.coords.latitude,lng=p.coords.longitude,base="#geo-"+num(lat)+"-"+num(lng);
+    document.getElementById("msg").textContent="Ищу адрес…";
+    var ctl=window.AbortController?new AbortController():null;
+    var t2=setTimeout(function(){if(ctl)ctl.abort();clearTimeout(timer);go(base)},4000);
+    fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=es&lat="+lat+"&lon="+lng,ctl?{signal:ctl.signal}:{})
+      .then(function(r){return r.json()})
+      .then(function(j){clearTimeout(t2);clearTimeout(timer);var s=slug(addrOf(j.address));go(base+(s?"-"+s:""))})
+      .catch(function(){clearTimeout(t2);clearTimeout(timer);go(base)});
+  },function(){clearTimeout(timer);go()},{enableHighAccuracy:true,timeout:8000,maximumAge:60000});
+}
+document.getElementById("go").addEventListener("click",function(e){e.preventDefault();locateAndGo()});
+if(!q.has("setup")&&(seen||q.get("go")==="1"||navigator.standalone)){locateAndGo()}
 </script>
 </body>
 </html>
