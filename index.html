@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Табель ANK</title>
+<meta name="apple-mobile-web-app-title" content="Табель ANK">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-512.png">
+<style>body{margin:0;font-family:-apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;background:#fff;color:#1d4a8a;text-align:center}a{color:#1d4a8a;font-weight:600}</style>
+</head>
+<body>
+<div>
+<img src="icon-512.png" width="120" height="120" alt="ANK"><br>
+<p>Открываю Табель…</p>
+<p><a href="https://claude.ai/artifact/1SiTN1QtQJ7gSZzxUL32Lg">Открыть Табель</a></p>
+<p style="color:#667;font-size:13px">Чтобы добавить на экран «Домой»: «Поделиться» → «На экран „Домой“».<br>Ярлык сам переадресует в Табель.</p>
+</div>
+<script>
+// First visit (or ?setup): stay on this page so Safari can add it to the home screen.
+// Every later visit, e.g. from the home screen icon, goes straight to the Табель.
+var T="https://claude.ai/artifact/1SiTN1QtQJ7gSZzxUL32Lg",q=new URLSearchParams(location.search),seen=false;
+try{seen=localStorage.getItem("ank-seen")==="1";localStorage.setItem("ank-seen","1")}catch(e){}
+if(!q.has("setup")&&(seen||q.get("go")==="1"||navigator.standalone)){location.replace(T)}
+</script>
+</body>
+</html>
