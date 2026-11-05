@@ -1,6 +1,7 @@
 /* Бот уведомлений Табель ANK. Запускается по расписанию в GitHub Actions (каждые 15 минут):
-   неявка утром, нет «Уехал» вечером, опоздания, новые сообщения рабочих, утренний и вечерний итог.
-   Отправляет Web Push в кабинет и сообщения в Telegram. Читает Firestore анонимно (ключ публичный). */
+   неявка утром, нет «Уехал» вечером, опоздания, новые сообщения рабочих, утренний и вечерний итог,
+   рассылки рабочим (push / Telegram / WhatsApp), письма и WhatsApp клиентам (очередь mailq, автонапоминания о счетах),
+   недельный email-отчёт. Читает Firestore анонимно (ключ публичный). */
 import webpush from "web-push";
 
 const FB_KEY = "AIzaSyDfVV7s3V6Eo4C9_dN9vDuTP69W6xFT3xk";
@@ -9,6 +10,7 @@ const SITE = "https://1vikinginua-ops.github.io/tabel-ank/";
 const VAPID_PUBLIC = process.env.VAPID_PUBLIC || "BEJLH5owagGWxVvyxDLemc40hBQcJFC_WL_5Q-OxnCjzfMfMIhgJBRuYPSWS11uxqM8fYj5ROfuRaB9FsMwtRXk";
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE || "";
 const TG = process.env.TELEGRAM_TOKEN || "";
+const WA_TOKEN = process.env.WA_TOKEN || "", WA_PHONE_ID = process.env.WA_PHONE_ID || "";
 const TZ = "Europe/Madrid";
 const ROOT = `projects/${PROJECT}/databases/(default)/documents`;
 const BASE = `https://firestore.googleapis.com/v1/${ROOT}`;
@@ -20,7 +22,7 @@ const encF = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== u
 const dec = v => !v ? null : "stringValue" in v ? v.stringValue : "integerValue" in v ? Number(v.integerValue) : "doubleValue" in v ? v.doubleValue : "booleanValue" in v ? v.booleanValue : "arrayValue" in v ? (v.arrayValue.values || []).map(dec) : "mapValue" in v ? decF(v.mapValue.fields || {}) : null;
 const decF = f => Object.fromEntries(Object.entries(f || {}).map(([k, v]) => [k, dec(v)]));
 let token = "";
-async function j(url, opt = {}) { const r = await fetch(url, { ...opt, headers: { ...H, ...(opt.headers || {}), ...(token ? { Authorization: "Bearer " + token } : {}) } }); const t = await r.text(); let b = {}; try { b = JSON.parse(t) } catch {} if (!r.ok) throw new Error(`${r.status} ${url.slice(0, 80)} ${t.slice(0, 200)}`); return b }
+async function j(url, opt = {}) { const own = opt.headers && opt.headers.Authorization; const r = await fetch(url, { ...opt, headers: { ...H, ...(opt.headers || {}), ...(token && !own ? { Authorization: "Bearer " + token } : {}) } }); const t = await r.text(); let b = {}; try { b = JSON.parse(t) } catch {} if (!r.ok) throw new Error(`${r.status} ${url.slice(0, 80)} ${t.slice(0, 200)}`); return b }
 async function auth() { const b = await j(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FB_KEY}`, { method: "POST", body: JSON.stringify({ returnSecureToken: true }) }); token = b.idToken }
 const get = async p => { try { const d = await j(`${BASE}/${p}`); return decF(d.fields) } catch (e) { if (/^404/.test(e.message)) return null; throw e } };
 const list = async c => ((await j(`${BASE}/${c}?pageSize=300`)).documents || []).map(d => ({ id: d.name.slice(d.name.lastIndexOf("/") + 1), ...decF(d.fields) }));
@@ -58,6 +60,55 @@ async function sendTg(chats, kind, text) {
   }
   return n;
 }
+/* WhatsApp Cloud API: текст внутри 24-часового окна, иначе — утверждённый шаблон с одним параметром {{1}} */
+const phoneNorm = p => { p = String(p || "").replace(/[^\d+]/g, ""); if (!p) return ""; if (p[0] === "+") p = p.slice(1); if (/^[6789]\d{8}$/.test(p)) p = "34" + p; return p };
+async function sendWa(phones, text, cfg) {
+  if (!WA_TOKEN || !WA_PHONE_ID || !cfg.waOn) return 0; let n = 0;
+  const url = `https://graph.facebook.com/v21.0/${WA_PHONE_ID}/messages`, hdr = { Authorization: "Bearer " + WA_TOKEN };
+  for (const raw of phones) {
+    const to = phoneNorm(raw); if (!to) continue;
+    const tpl = cfg.waTemplate ? { messaging_product: "whatsapp", to, type: "template", template: { name: cfg.waTemplate, language: { code: cfg.waLang || "es" }, components: [{ type: "body", parameters: [{ type: "text", text: text.replace(/\s*\n\s*/g, " · ").slice(0, 1000) }] }] } } : null;
+    const txt = { messaging_product: "whatsapp", to, type: "text", text: { preview_url: true, body: text.slice(0, 4000) } };
+    try { await j(url, { method: "POST", headers: hdr, body: JSON.stringify(tpl || txt) }); n++ }
+    catch (e) { if (tpl && !/131026|131047|131051/.test(e.message)) { try { await j(url, { method: "POST", headers: hdr, body: JSON.stringify(txt) }); n++; continue } catch (e2) { console.log("wa err", to.slice(0, 4) + "…", e2.message.slice(0, 160)) } } else console.log("wa err", to.slice(0, 4) + "…", e.message.slice(0, 160)) }
+  }
+  return n;
+}
+async function mailer() { const nodemailer = (await import("nodemailer")).default; return process.env.MAIL_DRY ? nodemailer.createTransport({ jsonTransport: true }) : nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT || 465), secure: String(process.env.SMTP_SECURE || "true") !== "false", auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } }) }
+const smtpOk = () => !!(process.env.SMTP_HOST || process.env.MAIL_DRY);
+/* очередь писем клиентам (mailq): email + WhatsApp */
+async function processMailq(cfg, workers) {
+  let q = []; try { q = (await list("mailq")).filter(m => !m.sent) } catch (e) { console.log("mailq", e.message.slice(0, 80)); return 0 }
+  let n = 0;
+  for (const m of q) {
+    let sentMail = false, sentWa = 0, err = "";
+    if (m.to && smtpOk()) { try { const tr = await mailer(); await tr.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to: m.to, subject: m.subject || "ANK", text: m.text || "", html: `<div style="font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#111;max-width:640px;white-space:pre-wrap">${String(m.text || "").replace(/[<>&]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c])).replace(/(https?:\/\/\S+)/g, '<a href="$1">$1</a>')}</div>` }); sentMail = true } catch (e) { err = e.message.slice(0, 160); console.log("mailq mail err", err) } }
+    if (m.phone && m.wa !== false) sentWa = await sendWa([m.phone], (m.subject ? m.subject + "\n\n" : "") + (m.text || ""), cfg);
+    const ok = sentMail || sentWa > 0 || (!m.to && !m.phone) || (!smtpOk() && !WA_TOKEN);
+    try { await patch(`mailq/${m.id}`, { sent: ok, sentTs: Date.now(), err: ok ? "" : (err || "no channel"), n: (sentMail ? 1 : 0) + sentWa }) } catch (e) { console.log("mailq patch", e.message.slice(0, 80)) }
+    if (ok) n++; console.log("mailq", m.id, m.kind, "mail", sentMail, "wa", sentWa);
+  }
+  return n;
+}
+/* автоматические напоминания о просроченных счетах (раз в 7 дней), если включено в настройках */
+async function autoInvoiceReminders(cfg, state, companyD) {
+  if (!cfg.invAutoRemind) return 0; let inv = []; try { inv = await list("invoices") } catch { return 0 }
+  let objs = [], portals = []; try { [objs, portals] = await Promise.all([list("objects"), list("portal")]) } catch {}
+  const today = nowParts().date, due = Number(cfg.invDue) || 30, co = companyD || {}; state.invRem = state.invRem || {}; let n = 0;
+  const addD = (k, d) => { const x = new Date(k + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + d); return x.toISOString().slice(0, 10) };
+  const objId = place => { let h = 0; const s2 = String(place || "").trim().toLowerCase(); for (let i = 0; i < s2.length; i++) h = (h * 33 + s2.charCodeAt(i)) >>> 0; return "o" + h.toString(36) };
+  for (const x of inv) {
+    if (x.status !== "sent" || !x.date) continue; const dueK = addD(x.date, due); if (dueK > today) continue;
+    const last = state.invRem[x.id] || x.remindTs || 0; if (Date.now() - last < 7 * 86400e3) continue;
+    const meta = objs.find(o => o.id === objId(x.object)) || {}, email = (x.client && x.client.email) || (meta.client && meta.client.email) || "", phone = (x.client && x.client.phone) || (meta.client && meta.client.phone) || "";
+    if (!email && !phone) continue;
+    const pt = portals.find(p => p.objId === objId(x.object)), fdate = k => { const [y, m2, d2] = k.split("-"); return `${d2}/${m2}/${y}` }, eur = v => (Math.round((v || 0) * 100) / 100).toLocaleString("es", { minimumFractionDigits: 2 }) + " €";
+    const text = `Estimado/a ${(x.client && x.client.name) || "cliente"},\n\nle recordamos que la factura ${x.no} de fecha ${fdate(x.date)} por importe de ${eur(x.total)} (${x.object}) venció el ${fdate(dueK)} y sigue pendiente de pago.\n\n${co.iban ? "Pago por transferencia: IBAN " + co.iban + " · Concepto: " + x.no + "\n" : ""}${pt ? "Puede consultar la factura en: " + SITE + "portal.html?t=" + pt.id + "\n" : ""}\nGracias por su confianza.\n${co.name || "Ingeniería y reformas ANK S.L."}${co.phone ? " · " + co.phone : ""}`;
+    const id = String(1e13 - Date.now()).padStart(13, "0") + "_auto" + n;
+    try { await set(`mailq/${id}`, { id, kind: "inv", invId: x.id, invNo: x.no, object: x.object, to: email, phone: phoneNorm(phone), subject: `Recordatorio de pago · Factura ${x.no} · ${co.name || "ANK"}`, text, ts: Date.now(), by: "bot", sent: false, wa: !!cfg.waOn, auto: true }); state.invRem[x.id] = Date.now(); n++; try { await patch(`invoices/${x.id}`, { remindTs: Date.now() }) } catch {} } catch (e) { console.log("autorem", e.message.slice(0, 80)) }
+  }
+  return n;
+}
 async function tgUpdates(state, chats) {
   if (!TG) return;
   let b; try { b = await j(`https://api.telegram.org/bot${TG}/getUpdates?offset=${(state.tgOffset || 0) + 1}&timeout=0`) } catch (e) { console.log("getUpdates", e.message.slice(0, 100)); return }
@@ -75,7 +126,6 @@ async function tgUpdates(state, chats) {
 
 /* ---------- недельный отчёт на email (HTML + PDF) ---------- */
 async function weeklyMail(cfg, rows, today, to) {
-  const nodemailer = (await import("nodemailer")).default;
   const d = new Date(today + "T12:00:00Z"); const dow = (d.getUTCDay() + 6) % 7; d.setUTCDate(d.getUTCDate() - dow - 7); const from = d.toISOString().slice(0, 10); d.setUTCDate(d.getUTCDate() + 6); const to7 = d.toISOString().slice(0, 10);
   const norm = Number(cfg.norm || 8) * 60, holidays = new Set(String(cfg.holidays || "").split(/[,\s]+/));
   let wdays = 0; for (let i = 0; i < 7; i++) { const x = new Date(from + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + i); const k = x.toISOString().slice(0, 10); if (x.getUTCDay() >= 1 && x.getUTCDay() <= 5 && !holidays.has(k)) wdays++ }
@@ -97,7 +147,7 @@ async function weeklyMail(cfg, rows, today, to) {
       doc.fontSize(12).text("Рабочие"); doc.fontSize(10); per.forEach(p => doc.text(`${p.name}: ${p.n} смен, ${fmt(p.h)} ч${p.ot ? ", +" + fmt(p.ot) : ""}${p.late ? ", опозданий " + p.late : ""}${p.open ? ", без «Уехал» " + p.open : ""}`)); doc.moveDown(0.6);
       doc.fontSize(12).text("Объекты"); doc.fontSize(10); Object.entries(objs).sort((a, b) => b[1] - a[1]).forEach(([k, v]) => doc.text(`${k}: ${fmt(v)} ч`)); doc.end() });
     attachments.push({ filename: `ANK_${from}_${to7}.pdf`, content: buf, contentType: "application/pdf" }) } catch (e) { console.log("pdf skipped", e.message.slice(0, 100)) }
-  const tr2 = process.env.MAIL_DRY ? nodemailer.createTransport({ jsonTransport: true }) : nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT || 465), secure: String(process.env.SMTP_SECURE || "true") !== "false", auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
+  const tr2 = await mailer();
   const info = await tr2.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to, subject: `Табель ANK · ${title}`, html, attachments });
   if (process.env.MAIL_DRY) console.log("MAIL_DRY", to, title, "html", html.length, "pdf", attachments.length ? attachments[0].content.length : 0, String(info.message || "").length);
 }
@@ -105,7 +155,7 @@ async function weeklyMail(cfg, rows, today, to) {
 /* ---------- основной цикл ---------- */
 async function main() {
   await auth();
-  const [cfgD, wl, stateD, tgs, pushes, absences, remD, bcs] = await Promise.all([get("cab/cfg"), get("cab/workers"), get("bot/state"), list("tg"), list("push"), list("absences").catch(() => []), get("bot/reminders").catch(() => null), list("broadcast").catch(() => [])]);
+  const [cfgD, wl, stateD, tgs, pushes, absences, remD, bcs, companyD] = await Promise.all([get("cab/cfg"), get("cab/workers"), get("bot/state"), list("tg"), list("push"), list("absences").catch(() => []), get("bot/reminders").catch(() => null), list("broadcast").catch(() => []), get("cab/company").catch(() => null)]);
   const cfg = { start: "08:00", grace: 15, norm: 8, digest: "21:00", morning: "09:30", noout: "20:00", planNotify: "18:30", mailAt: "08:00", ...(cfgD || {}) };
   const staffPush = pushes.filter(p => p.kind !== "worker"), workerPush = pushes.filter(p => p.kind === "worker" && p.uid);
   const staffTg = tgs.filter(c => !c.uid), workerTg = tgs.filter(c => c.uid);
@@ -158,12 +208,14 @@ async function main() {
   /* рассылка рабочим */
   for (const b of bcs.filter(x => !x.sent)) {
     const to = b.to === "all" ? null : (Array.isArray(b.to) ? b.to : []);
-    const subs = workerPush.filter(p => !to || to.includes(p.uid)), chats = workerTg.filter(c => !to || to.includes(c.uid));
-    let n = 0;
-    n += await sendPush(subs, "bc", `${b.by || "Руководитель"}: сообщение`, b.text, SITE, "worker");
-    n += await sendTg(chats, "bc", `<b>${b.by || "Руководитель"}</b>\n${b.text}`);
-    try { await patch(`broadcast/${b.id}`, { sent: true, sentTs: Date.now(), n }) } catch (e) { console.log("bc patch", e.message.slice(0, 80)) }
-    console.log("broadcast", b.id, "→", n);
+    const ch = b.ch || { push: true, tg: true, wa: !!cfg.waOn };
+    const subs = workerPush.filter(p => !to || to.includes(p.uid)), chats = workerTg.filter(c => !to || to.includes(c.uid)), phones = workers.filter(w => w.phone && (!to || to.includes(w.id))).map(w => w.phone);
+    let n = 0, nwa = 0;
+    if (ch.push !== false) n += await sendPush(subs, "bc", `${b.by || "Руководитель"}: сообщение`, b.text, SITE, "worker");
+    if (ch.tg !== false) n += await sendTg(chats, "bc", `<b>${b.by || "Руководитель"}</b>\n${b.text}`);
+    if (ch.wa) nwa = await sendWa(phones, `${b.by || "ANK"}: ${b.text}`, cfg);
+    try { await patch(`broadcast/${b.id}`, { sent: true, sentTs: Date.now(), n, nwa }) } catch (e) { console.log("bc patch", e.message.slice(0, 80)) }
+    console.log("broadcast", b.id, "→", n, "wa", nwa);
   }
   /* план на завтра — рабочим вечером */
   const planAt = toMin(cfg.planNotify || "18:30");
@@ -190,6 +242,10 @@ async function main() {
   if (now.wd === 1 && now.hm >= toMin(cfg.mailAt || "08:00") && now.hm < toMin(cfg.mailAt || "08:00") + 45 && !state.sent[`mail:${today}`] && process.env.SMTP_HOST && (cfg.mailTo || process.env.MAIL_TO)) {
     try { await weeklyMail(cfg, rows, today, cfg.mailTo || process.env.MAIL_TO); state.sent[`mail:${today}`] = Date.now(); console.log("weekly mail sent") } catch (e) { console.log("mail err", e.message.slice(0, 200)) }
   }
+  /* письма и WhatsApp клиентам: очередь из кабинета + автонапоминания о просроченных счетах */
+  const autoN = await autoInvoiceReminders(cfg, state, companyD);
+  const mailN = await processMailq(cfg, workers);
+  if (autoN || mailN) console.log("client reminders: auto", autoN, "sent", mailN);
   const cut = Date.now() - 3 * 86400e3; for (const k of Object.keys(state.sent)) if (state.sent[k] < cut) delete state.sent[k];
   state.lastRun = Date.now(); state.lastRunText = `${today} ${fmt(now.hm)}`;
   await set("bot/state", state);
