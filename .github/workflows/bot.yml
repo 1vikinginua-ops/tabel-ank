@@ -1,0 +1,26 @@
+name: ANK bot
+on:
+  schedule:
+    - cron: "*/15 5-21 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ank-bot
+  cancel-in-progress: false
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install
+        run: cd bot && npm install --no-audit --no-fund --omit=dev
+      - name: Run
+        run: node bot/run.mjs
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
