@@ -26,6 +26,7 @@ const get = async p => { try { const d = await j(`${BASE}/${p}`); return decF(d.
 const list = async c => ((await j(`${BASE}/${c}?pageSize=300`)).documents || []).map(d => ({ id: d.name.slice(d.name.lastIndexOf("/") + 1), ...decF(d.fields) }));
 const batchGet = async paths => paths.length ? (await j(`${BASE}:batchGet`, { method: "POST", body: JSON.stringify({ documents: paths.map(p => `${ROOT}/${p}`) }) })).filter(x => x.found).map(x => ({ id: x.found.name.slice(x.found.name.lastIndexOf("/") + 1), ...decF(x.found.fields) })) : [];
 const set = (p, d) => j(`${BASE}/${p}`, { method: "PATCH", body: JSON.stringify({ fields: encF(d) }) });
+const patch = (p, d) => j(`${BASE}/${p}?` + Object.keys(d).map(k => "updateMask.fieldPaths=" + k).join("&"), { method: "PATCH", body: JSON.stringify({ fields: encF(d) }) });
 const del = p => j(`${BASE}/${p}`, { method: "DELETE" }).catch(() => {});
 
 /* ---------- время и табель ---------- */
@@ -37,13 +38,13 @@ const mins = e => { const s = toMin(e.start), f = toMin(e.end); return s == null
 const first = n => String(n || "").split(" ")[0];
 
 /* ---------- отправка ---------- */
-async function sendPush(subs, kind, title, body, url) {
+async function sendPush(subs, kind, title, body, url, app) {
   if (!VAPID_PRIVATE || VAPID_PUBLIC.startsWith("__")) return 0;
   webpush.setVapidDetails("mailto:info@ank-valencia.es", VAPID_PUBLIC, VAPID_PRIVATE);
   let n = 0;
   for (const s of subs) {
     if (s.prefs && s.prefs[kind] === false) continue;
-    try { await webpush.sendNotification(s.sub, JSON.stringify({ title, body, url: url || SITE + "boss.html", tag: kind })); n++ }
+    try { await webpush.sendNotification(s.sub, JSON.stringify({ title, body, url: url || SITE + "boss.html", tag: kind, app: app || "boss" })); n++ }
     catch (e) { if (e.statusCode === 404 || e.statusCode === 410) await del(`push/${s.id}`); else console.log("push err", e.statusCode, e.body?.slice?.(0, 100)) }
   }
   return n;
@@ -66,19 +67,53 @@ async function tgUpdates(state, chats) {
     const id = String(m.chat.id), known = chats.find(c => c.id === id);
     const name = [m.chat.first_name, m.chat.last_name].filter(Boolean).join(" ") || m.chat.title || id, user = m.chat.username || "";
     if (!known) { await set(`tg/${id}`, { name, user, ts: Date.now(), ok: false }); chats.push({ id, name, user, ok: false }); await sendTg([{ id, ok: true }], "x", "Заявка отправлена руководителю. Как только её одобрят в кабинете (Настройки → Уведомления), сюда будут приходить сообщения Табеля ANK.") }
+    else if (known.ok && known.uid && /^\/(start|plan|план|status)/i.test(m.text || "")) known.wantPlan = true;
     else if (known.ok && /^\/(start|status|сегодня)/i.test(m.text || "")) known.wantStatus = true;
     else if (!known.ok) await sendTg([{ id, ok: true }], "x", "Заявка ещё не одобрена. Попросите руководителя открыть кабинет → Настройки → Уведомления.");
   }
 }
 
+/* ---------- недельный отчёт на email (HTML + PDF) ---------- */
+async function weeklyMail(cfg, rows, today, to) {
+  const nodemailer = (await import("nodemailer")).default;
+  const d = new Date(today + "T12:00:00Z"); const dow = (d.getUTCDay() + 6) % 7; d.setUTCDate(d.getUTCDate() - dow - 7); const from = d.toISOString().slice(0, 10); d.setUTCDate(d.getUTCDate() + 6); const to7 = d.toISOString().slice(0, 10);
+  const norm = Number(cfg.norm || 8) * 60, holidays = new Set(String(cfg.holidays || "").split(/[,\s]+/));
+  let wdays = 0; for (let i = 0; i < 7; i++) { const x = new Date(from + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + i); const k = x.toISOString().slice(0, 10); if (x.getUTCDay() >= 1 && x.getUTCDay() <= 5 && !holidays.has(k)) wdays++ }
+  const per = rows.map(r => { const days = (r.l && r.l.days || []).filter(e => e.date >= from && e.date <= to7 && e.end); const h = days.reduce((a, e) => a + mins(e), 0), ot = days.reduce((a, e) => a + Math.max(0, mins(e) - norm), 0); const objs = {}; days.forEach(e => { const p = (e.place || "—").trim(); objs[p] = (objs[p] || 0) + mins(e) }); const open = (r.l && r.l.days || []).filter(e => e.date >= from && e.date <= to7 && e.start && !e.end).length; return { name: r.name, h, ot, n: days.length, open, objs, late: days.filter(e => toMin(e.start) > toMin(cfg.start) + Number(cfg.grace || 0)).length } });
+  const tot = per.reduce((a, p) => ({ h: a.h + p.h, ot: a.ot + p.ot, n: a.n + p.n }), { h: 0, ot: 0, n: 0 });
+  const objs = {}; per.forEach(p => Object.entries(p.objs).forEach(([k, v]) => { objs[k] = (objs[k] || 0) + v }));
+  const title = `Отчёт за неделю ${from.slice(8)}.${from.slice(5, 7)} – ${to7.slice(8)}.${to7.slice(5, 7)}`;
+  const tr = per.sort((a, b) => b.h - a.h).map(p => `<tr><td>${p.name}</td><td align="right">${p.n}</td><td align="right">${fmt(p.h)}</td><td align="right">${p.ot ? fmt(p.ot) : ""}</td><td align="right">${p.late || ""}</td><td align="right">${p.open || ""}</td></tr>`).join("");
+  const otr = Object.entries(objs).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<tr><td>${k}</td><td align="right">${fmt(v)}</td></tr>`).join("");
+  const html = `<div style="font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#111;max-width:720px"><h2 style="margin:0 0 4px">${title}</h2><p style="color:#555;margin:0 0 14px">Ingeniería y reformas ANK · ${rows.length} рабочих · норма ${wdays * Number(cfg.norm || 8)} ч на человека</p>
+  <table cellpadding="6" style="border-collapse:collapse;width:100%;font-size:13px"><tr style="background:#f2f5fa"><td><b>Итого</b></td><td align="right"><b>${tot.n} смен</b></td><td align="right"><b>${fmt(tot.h)} ч</b></td><td align="right">${tot.ot ? "+" + fmt(tot.ot) : ""}</td><td></td><td></td></tr></table>
+  <h3 style="margin:16px 0 6px">Рабочие</h3><table cellpadding="6" style="border-collapse:collapse;width:100%;font-size:13px;border:1px solid #e3e6ec"><tr style="background:#f2f5fa"><th align="left">Рабочий</th><th align="right">Смен</th><th align="right">Часы</th><th align="right">Сверх</th><th align="right">Опозд.</th><th align="right">Без «Уехал»</th></tr>${tr}</table>
+  <h3 style="margin:16px 0 6px">Объекты</h3><table cellpadding="6" style="border-collapse:collapse;width:100%;font-size:13px;border:1px solid #e3e6ec"><tr style="background:#f2f5fa"><th align="left">Объект</th><th align="right">Часы</th></tr>${otr || "<tr><td colspan=2>—</td></tr>"}</table>
+  <p style="color:#777;font-size:12px;margin-top:18px">Подробности, зарплата и PDF — в кабинете: <a href="${SITE}boss.html#v=report">${SITE}boss.html</a></p></div>`;
+  const attachments = [];
+  try { const PDFDocument = (await import("pdfkit")).default; const fs = await import("fs"); const font = ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/dejavu/DejaVuSans.ttf"].find(f => fs.existsSync(f));
+    const buf = await new Promise((res, rej) => { const doc = new PDFDocument({ size: "A4", margin: 40 }); const chunks = []; doc.on("data", c => chunks.push(c)); doc.on("end", () => res(Buffer.concat(chunks))); doc.on("error", rej); if (font) doc.font(font);
+      doc.fontSize(18).text(title); doc.fontSize(10).fillColor("#555").text(`Ingeniería y reformas ANK · ${rows.length} рабочих`); doc.moveDown(); doc.fillColor("#111").fontSize(11).text(`Итого: ${tot.n} смен, ${fmt(tot.h)} ч${tot.ot ? ", сверхурочных " + fmt(tot.ot) : ""}`); doc.moveDown(0.6);
+      doc.fontSize(12).text("Рабочие"); doc.fontSize(10); per.forEach(p => doc.text(`${p.name}: ${p.n} смен, ${fmt(p.h)} ч${p.ot ? ", +" + fmt(p.ot) : ""}${p.late ? ", опозданий " + p.late : ""}${p.open ? ", без «Уехал» " + p.open : ""}`)); doc.moveDown(0.6);
+      doc.fontSize(12).text("Объекты"); doc.fontSize(10); Object.entries(objs).sort((a, b) => b[1] - a[1]).forEach(([k, v]) => doc.text(`${k}: ${fmt(v)} ч`)); doc.end() });
+    attachments.push({ filename: `ANK_${from}_${to7}.pdf`, content: buf, contentType: "application/pdf" }) } catch (e) { console.log("pdf skipped", e.message.slice(0, 100)) }
+  const tr2 = process.env.MAIL_DRY ? nodemailer.createTransport({ jsonTransport: true }) : nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT || 465), secure: String(process.env.SMTP_SECURE || "true") !== "false", auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
+  const info = await tr2.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to, subject: `Табель ANK · ${title}`, html, attachments });
+  if (process.env.MAIL_DRY) console.log("MAIL_DRY", to, title, "html", html.length, "pdf", attachments.length ? attachments[0].content.length : 0, String(info.message || "").length);
+}
+
 /* ---------- основной цикл ---------- */
 async function main() {
   await auth();
-  const [cfgD, wl, stateD, tgs, pushes] = await Promise.all([get("cab/cfg"), get("cab/workers"), get("bot/state"), list("tg"), list("push")]);
-  const cfg = { start: "08:00", grace: 15, norm: 8, digest: "21:00", morning: "09:30", noout: "20:00", ...(cfgD || {}) };
+  const [cfgD, wl, stateD, tgs, pushes, absences, remD, bcs] = await Promise.all([get("cab/cfg"), get("cab/workers"), get("bot/state"), list("tg"), list("push"), list("absences").catch(() => []), get("bot/reminders").catch(() => null), list("broadcast").catch(() => [])]);
+  const cfg = { start: "08:00", grace: 15, norm: 8, digest: "21:00", morning: "09:30", noout: "20:00", planNotify: "18:30", mailAt: "08:00", ...(cfgD || {}) };
+  const staffPush = pushes.filter(p => p.kind !== "worker"), workerPush = pushes.filter(p => p.kind === "worker" && p.uid);
+  const staffTg = tgs.filter(c => !c.uid), workerTg = tgs.filter(c => c.uid);
+  const holidays = new Set(String(cfg.holidays == null ? "" : cfg.holidays).split(/[,\s]+/).filter(Boolean));
+  const absent = (uid, date) => absences.some(a => a.uid === uid && a.from <= date && a.to >= date);
   const workers = (wl && wl.list) || [];
   const state = { sent: {}, ...(stateD || {}) };
-  const now = nowParts(), today = now.date, weekday = now.wd >= 1 && now.wd <= 5;
+  const now = nowParts(), today = now.date, weekday = now.wd >= 1 && now.wd <= 5 && !holidays.has(now.date);
   const late = toMin(cfg.start) + Number(cfg.grace || 0), noinAt = late + 30, nooutAt = toMin(cfg.noout || "20:00"), morningAt = toMin(cfg.morning || "09:30"), eveningAt = toMin(cfg.digest || "21:00");
   console.log("now", today, fmt(now.hm), "workers", workers.length, "tg", tgs.length, "push", pushes.length);
   await tgUpdates(state, tgs);
@@ -90,7 +125,7 @@ async function main() {
   const alerts = []; // {key, kind, title, body}
   const once = (key, kind, title, body) => { if (state.sent[key]) return; alerts.push({ key, kind, title, body }) };
   if (weekday) for (const r of rows) {
-    if (!r.l) continue;
+    if (!r.l || absent(r.w.id, today)) continue;
     if (!r.e || !r.e.start) { if (now.hm >= noinAt && now.hm < nooutAt) once(`noin:${today}:${r.w.id}`, "noin", `${first(r.name)} не отметился`, `К ${fmt(noinAt)} нет «Приехал». Позвоните или проверьте план.`) }
     else {
       if (toMin(r.e.start) > late) once(`late:${today}:${r.w.id}`, "late", `${first(r.name)} опоздал`, `Приехал в ${r.e.start}${r.e.place ? " · " + r.e.place : ""}`);
@@ -107,17 +142,53 @@ async function main() {
     state.lastEventTs = Math.max(state.lastEventTs || 0, e.ts || 0);
   }
   /* утренний и вечерний итог */
-  const onsite = rows.filter(r => r.e && r.e.start && !r.e.end), done = rows.filter(r => r.e && r.e.end), none = rows.filter(r => r.l && !(r.e && r.e.start));
-  if (weekday && now.hm >= morningAt && now.hm < morningAt + 45) once(`morning:${today}`, "morning", `Утро: на объектах ${onsite.length + done.length} из ${rows.length}`, (onsite.length ? "На объекте: " + onsite.map(r => `${first(r.name)} (${r.e.place || "?"}, с ${r.e.start})`).join(", ") + ". " : "") + (none.length ? "Не отметились: " + none.map(r => first(r.name)).join(", ") + "." : "Все отметились."));
+  const onsite = rows.filter(r => r.e && r.e.start && !r.e.end), done = rows.filter(r => r.e && r.e.end), away = rows.filter(r => absent(r.w.id, today)), none = rows.filter(r => r.l && !(r.e && r.e.start) && !absent(r.w.id, today));
+  const remItems = (remD && remD.items || []).filter(x => x.sev >= 1).slice(0, 5);
+  if (weekday && now.hm >= morningAt && now.hm < morningAt + 45) once(`morning:${today}`, "morning", `Утро: на объектах ${onsite.length + done.length} из ${rows.length - away.length}`, (onsite.length ? "На объекте: " + onsite.map(r => `${first(r.name)} (${r.e.place || "?"}, с ${r.e.start})`).join(", ") + ". " : "") + (none.length ? "Не отметились: " + none.map(r => first(r.name)).join(", ") + "." : "Все отметились.") + (away.length ? " Отсутствуют: " + away.map(r => first(r.name)).join(", ") + "." : "") + (remItems.length ? "\nСроки: " + remItems.map(x => x.t).join("; ") : ""));
   if (now.hm >= eveningAt && now.hm < eveningAt + 45) { const tot = done.reduce((a, r) => a + mins(r.e), 0); once(`evening:${today}`, "evening", `Итог дня: ${fmt(tot)} ч, смен ${done.length}`, (done.map(r => `${first(r.name)} ${fmt(mins(r.e))}`).join(", ") || "Закрытых смен нет") + (onsite.length ? ". Без «Уехал»: " + onsite.map(r => first(r.name)).join(", ") : "") + (none.length && weekday ? ". Не выходили: " + none.map(r => first(r.name)).join(", ") : "")) }
   /* статус по запросу в Telegram */
   for (const c of tgs.filter(c => c.wantStatus)) await sendTg([c], "x", `<b>${today} ${fmt(now.hm)}</b>\nНа объекте: ${onsite.map(r => `${first(r.name)} (${r.e.place || "?"})`).join(", ") || "никого"}\nЗакончили: ${done.map(r => `${first(r.name)} ${fmt(mins(r.e))}`).join(", ") || "—"}\nНе отметились: ${none.map(r => first(r.name)).join(", ") || "—"}`);
 
   let sentPush = 0, sentTg = 0;
   for (const a of alerts) {
-    sentPush += await sendPush(pushes, a.kind, a.title, a.body, SITE + "boss.html" + (a.kind === "msg" ? "#v=inbox" : ""));
-    sentTg += await sendTg(tgs, a.kind, `<b>${a.title}</b>\n${a.body}`);
+    sentPush += await sendPush(staffPush, a.kind, a.title, a.body, SITE + "boss.html" + (a.kind === "msg" ? "#v=inbox" : ""));
+    sentTg += await sendTg(staffTg, a.kind, `<b>${a.title}</b>\n${a.body}`);
     state.sent[a.key] = Date.now();
+  }
+  /* рассылка рабочим */
+  for (const b of bcs.filter(x => !x.sent)) {
+    const to = b.to === "all" ? null : (Array.isArray(b.to) ? b.to : []);
+    const subs = workerPush.filter(p => !to || to.includes(p.uid)), chats = workerTg.filter(c => !to || to.includes(c.uid));
+    let n = 0;
+    n += await sendPush(subs, "bc", `${b.by || "Руководитель"}: сообщение`, b.text, SITE, "worker");
+    n += await sendTg(chats, "bc", `<b>${b.by || "Руководитель"}</b>\n${b.text}`);
+    try { await patch(`broadcast/${b.id}`, { sent: true, sentTs: Date.now(), n }) } catch (e) { console.log("bc patch", e.message.slice(0, 80)) }
+    console.log("broadcast", b.id, "→", n);
+  }
+  /* план на завтра — рабочим вечером */
+  const planAt = toMin(cfg.planNotify || "18:30");
+  if (now.hm >= planAt && now.hm < planAt + 45 && !state.sent[`plan:${today}`]) {
+    const tmr = new Date(today + "T12:00:00Z"); tmr.setUTCDate(tmr.getUTCDate() + 1); const tk = tmr.toISOString().slice(0, 10);
+    const plan = await get(`plans/${tk}`);
+    if (plan && plan.w) for (const uid of Object.keys(plan.w)) {
+      const x = plan.w[uid]; if (!x || !(x.place || (x.items && x.items.length))) continue;
+      const items = (x.items || []).map(i => typeof i === "string" ? i : i.text).filter(Boolean);
+      const body = `${x.place ? "📍 " + x.place : ""}${items.length ? "\n• " + items.join("\n• ") : ""}${x.note ? "\n💬 " + x.note : ""}`.trim();
+      await sendPush(workerPush.filter(p => p.uid === uid), "plan", `План на завтра · ${tk.slice(8)}.${tk.slice(5, 7)}`, body.replace(/\n/g, " "), SITE, "worker");
+      await sendTg(workerTg.filter(c => c.uid === uid), "plan", `<b>План на завтра · ${tk.slice(8)}.${tk.slice(5, 7)}</b>\n${body}`);
+    }
+    state.sent[`plan:${today}`] = Date.now();
+  }
+  /* /plan по запросу рабочего в Telegram */
+  for (const c of workerTg.filter(c => c.wantPlan)) {
+    const tmr = new Date(today + "T12:00:00Z"); tmr.setUTCDate(tmr.getUTCDate() + 1); const tk = tmr.toISOString().slice(0, 10);
+    const [p1, p2] = await Promise.all([get(`plans/${today}`), get(`plans/${tk}`)]);
+    const fmtP = (p, label) => { const x = p && p.w && p.w[c.uid]; if (!x || !(x.place || (x.items && x.items.length))) return `${label}: плана нет`; return `<b>${label}</b>: ${x.place || ""}${(x.items || []).length ? "\n• " + x.items.map(i => (i.done ? "✓ " : "") + (i.text || i)).join("\n• ") : ""}${x.note ? "\n💬 " + x.note : ""}` };
+    await sendTg([c], "x", `${fmtP(p1, "Сегодня")}\n${fmtP(p2, "Завтра")}`);
+  }
+  /* недельный отчёт на email по понедельникам */
+  if (now.wd === 1 && now.hm >= toMin(cfg.mailAt || "08:00") && now.hm < toMin(cfg.mailAt || "08:00") + 45 && !state.sent[`mail:${today}`] && process.env.SMTP_HOST && (cfg.mailTo || process.env.MAIL_TO)) {
+    try { await weeklyMail(cfg, rows, today, cfg.mailTo || process.env.MAIL_TO); state.sent[`mail:${today}`] = Date.now(); console.log("weekly mail sent") } catch (e) { console.log("mail err", e.message.slice(0, 200)) }
   }
   const cut = Date.now() - 3 * 86400e3; for (const k of Object.keys(state.sent)) if (state.sent[k] < cut) delete state.sent[k];
   state.lastRun = Date.now(); state.lastRunText = `${today} ${fmt(now.hm)}`;
