@@ -90,22 +90,24 @@ async function processMailq(cfg, workers) {
   }
   return n;
 }
-/* автоматические напоминания о просроченных счетах (раз в 7 дней), если включено в настройках */
+/* автоматические напоминания о просроченных счетах (раз в 7 дней), если включено в настройках.
+   Бот не имеет доступа к invoices — кабинет кладёт список неоплаченных счетов в bot/invdue */
 async function autoInvoiceReminders(cfg, state, companyD) {
-  if (!cfg.invAutoRemind) return 0; let inv = []; try { inv = await list("invoices") } catch { return 0 }
+  if (!cfg.invAutoRemind) return 0; let due = null; try { due = await get("bot/invdue") } catch { return 0 }
+  const inv = (due && due.on !== false && Array.isArray(due.items)) ? due.items : []; if (!inv.length) return 0;
   let objs = [], portals = []; try { [objs, portals] = await Promise.all([list("objects"), list("portal")]) } catch {}
-  const today = nowParts().date, due = Number(cfg.invDue) || 30, co = companyD || {}; state.invRem = state.invRem || {}; let n = 0;
+  const today = nowParts().date, dueDays = Number(cfg.invDue) || 30, co = companyD || {}; state.invRem = state.invRem || {}; let n = 0;
   const addD = (k, d) => { const x = new Date(k + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + d); return x.toISOString().slice(0, 10) };
   const objId = place => { let h = 0; const s2 = String(place || "").trim().toLowerCase(); for (let i = 0; i < s2.length; i++) h = (h * 33 + s2.charCodeAt(i)) >>> 0; return "o" + h.toString(36) };
   for (const x of inv) {
-    if (x.status !== "sent" || !x.date) continue; const dueK = addD(x.date, due); if (dueK > today) continue;
-    const last = state.invRem[x.id] || x.remindTs || 0; if (Date.now() - last < 7 * 86400e3) continue;
+    if (!x.date || !x.id) continue; const dueK = addD(x.date, dueDays); if (dueK > today) continue;
+    const last = Math.max(state.invRem[x.id] || 0, x.lastRem || 0); if (Date.now() - last < 7 * 86400e3) continue;
     const meta = objs.find(o => o.id === objId(x.object)) || {}, email = (x.client && x.client.email) || (meta.client && meta.client.email) || "", phone = (x.client && x.client.phone) || (meta.client && meta.client.phone) || "";
     if (!email && !phone) continue;
     const pt = portals.find(p => p.objId === objId(x.object)), fdate = k => { const [y, m2, d2] = k.split("-"); return `${d2}/${m2}/${y}` }, eur = v => (Math.round((v || 0) * 100) / 100).toLocaleString("es", { minimumFractionDigits: 2 }) + " €";
     const text = `Estimado/a ${(x.client && x.client.name) || "cliente"},\n\nle recordamos que la factura ${x.no} de fecha ${fdate(x.date)} por importe de ${eur(x.total)} (${x.object}) venció el ${fdate(dueK)} y sigue pendiente de pago.\n\n${co.iban ? "Pago por transferencia: IBAN " + co.iban + " · Concepto: " + x.no + "\n" : ""}${pt ? "Puede consultar la factura en: " + SITE + "portal.html?t=" + pt.id + "\n" : ""}\nGracias por su confianza.\n${co.name || "Ingeniería y reformas ANK S.L."}${co.phone ? " · " + co.phone : ""}`;
     const id = String(1e13 - Date.now()).padStart(13, "0") + "_auto" + n;
-    try { await set(`mailq/${id}`, { id, kind: "inv", invId: x.id, invNo: x.no, object: x.object, to: email, phone: phoneNorm(phone), subject: `Recordatorio de pago · Factura ${x.no} · ${co.name || "ANK"}`, text, ts: Date.now(), by: "bot", sent: false, wa: !!cfg.waOn, auto: true }); state.invRem[x.id] = Date.now(); n++; try { await patch(`invoices/${x.id}`, { remindTs: Date.now() }) } catch {} } catch (e) { console.log("autorem", e.message.slice(0, 80)) }
+    try { await set(`mailq/${id}`, { id, kind: "inv", invId: x.id, invNo: x.no, object: x.object, to: email, phone: phoneNorm(phone), subject: `Recordatorio de pago · Factura ${x.no} · ${co.name || "ANK"}`, text, ts: Date.now(), by: "bot", sent: false, wa: !!cfg.waOn, auto: true }); state.invRem[x.id] = Date.now(); n++ } catch (e) { console.log("autorem", e.message.slice(0, 80)) }
   }
   return n;
 }
