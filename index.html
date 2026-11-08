@@ -176,6 +176,7 @@ textarea{min-height:46px}
 .photos{grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
 #t-details .row{grid-template-columns:repeat(3,minmax(0,1fr))!important}
 #t-details .row .full{grid-column:auto!important}
+@media (max-width:374px){#t-details .row{grid-template-columns:repeat(2,minmax(0,1fr))!important}#t-details .row>label:nth-child(3){grid-column:1/-1!important}#t-details .row input[type="time"]{padding:12px 6px;font-size:14px;letter-spacing:-.02em}}
 #t-details input[type="time"],#t-details select{padding:8px 6px;font-size:15px}
 #t-details textarea{min-height:40px}
 .chip:empty{display:none}
@@ -348,11 +349,12 @@ textarea{min-height:46px}
 (function(){
   const $ = id => document.getElementById(id);
   const WD = ["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"];
-  const WD_FORM = ["ПОНЕДЕЛЬНИК","ВТОРНИК","СРЕДА","ЧЕТВЕРГ","ПЯТНИЦА","СУББОТА"];
+  const WDS = ["вс","пн","вт","ср","чт","пт","сб"];
+  const WD_FORM = ["ПОНЕДЕЛЬНИК","ВТОРНИК","СРЕДА","ЧЕТВЕРГ","ПЯТНИЦА","СУББОТА","ВОСКРЕСЕНЬЕ"];
   const MON = ["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"];
   const MON_G = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
   const LOGO="data:image/png;base64,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";
-  const DEF_CFG = {name:"Иванченко Данил", group:"", tin:"Приехал на объект {объект}, {время}", tout:"Уехал с объекта {объект}, {время}"};
+  const DEF_CFG = {name:"", group:"", tin:"Приехал на объект {объект}, {время}", tout:"Уехал с объекта {объект}, {время}"};
 
   let db=null, days={}, cfg={...DEF_CFG}, canWrite=true;
   const pad=n=>String(n).padStart(2,"0");
@@ -362,6 +364,8 @@ textarea{min-height:46px}
   const toMin=t=>{if(!t)return null;const [h,m]=t.split(":").map(Number);return h*60+m};
   const mins=e=>{const s=toMin(e.start),f=toMin(e.end);if(s==null||f==null)return 0;return Math.max(0,f-s-(Number(e.breakMin)||0))};
   const fmt=m=>Math.floor(m/60)+":"+pad(m%60);
+  /* перерыв вне списка 0/30/60/90 (после таймера) — добавляем пункт, иначе select сбросится в пусто и 0 минут */
+  function setBreak(sel,v){v=String(Number(v)||0);if(![...sel.options].some(o=>o.value===v)){const o=document.createElement("option");o.value=v;const n=Number(v);o.textContent=n<60?n+" мин":n%60?Math.floor(n/60)+" ч "+(n%60):Math.floor(n/60)+" ч";sel.appendChild(o)}sel.value=v}
   const ddmm=k=>{const d=parse(k);return pad(d.getDate())+"."+pad(d.getMonth()+1)};
   const monday=d=>{const x=new Date(d);x.setDate(x.getDate()-((x.getDay()+6)%7));x.setHours(0,0,0,0);return x};
   const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
@@ -401,7 +405,7 @@ textarea{min-height:46px}
   async function saveDay(e){
     if(!db){toast("Журнал недоступен в этом окне");return false}
     try{await db.collection("days").doc(e.date).set(e);return true}
-    catch(err){toast(err&&err.code==="quota_exceeded"?"Журнал переполнен":"Не сохранилось, попробуйте ещё раз");return false}
+    catch(err){const q=err&&(err.code==="quota_exceeded"||err.name==="QuotaExceededError"||/quota/i.test(err.message||""));toast(q?"Память телефона заполнена — удалите старые фото или сделайте копию":"Не сохранилось, попробуйте ещё раз");return false}
   }
   async function delDay(k){if(!db)return;try{await db.collection("days").doc(k).delete()}catch(e){toast("Не удалилось")}}
 
@@ -422,16 +426,17 @@ textarea{min-height:46px}
     const d=new Date(),k=todayKey(),e=days[k];
     $("t-wd").textContent=WD[d.getDay()];
     $("t-date").textContent=d.getDate()+" "+MON_G[d.getMonth()]+" "+d.getFullYear();
-    if(document.activeElement!==$("t-place")&&!$("t-place").dataset.touched)$("t-place").value=(e&&e.start)?(e.place||""):(geo?geo.addr:(e?e.place||"":lastPlace()||""));
+    if(document.activeElement!==$("t-place")&&!$("t-place").dataset.touched){const planPl=(window.ANKCrew&&ANKCrew.planPlace&&ANKCrew.planPlace())||"";$("t-place").value=(e&&e.start)?(e.place||""):((e&&e.place)||planPl||lastPlace()||(geo?geo.addr:""))}
     renderGeo(e);
     $("b-in-s").textContent=e&&e.start?"в "+e.start:"отметить время";
     $("b-out-s").textContent=e&&e.end?"в "+e.end:"отметить время";
-    $("b-out").disabled=!(e&&e.start);
+    const yk=key(addDays(d,-1)),yOpen=!(e&&e.start)&&!!(days[yk]&&days[yk].start&&!days[yk].end);
+    $("b-out").disabled=!(e&&e.start)&&!yOpen;if(yOpen)$("b-out-s").textContent="закрыть вчерашнюю смену";
     $("t-details").hidden=!(e&&e.start);
     if(e){
       if(!tDirty.has("t-work")&&document.activeElement!==$("t-work"))$("t-work").value=e.work||"";
       if(!tDirty.has("t-start"))$("t-start").value=e.start||"";if(!tDirty.has("t-end"))$("t-end").value=e.end||"";
-      if(!tDirty.has("t-break"))$("t-break").value=String(e.breakMin??60);
+      if(!tDirty.has("t-break"))setBreak($("t-break"),e.breakMin??60);
       if(!tDirty.has("t-extra")&&document.activeElement!==$("t-extra"))$("t-extra").value=e.extra||"";
       $("t-hours").textContent=e.end?"Итого "+fmt(mins(e)):"";
       renderThumbs($("t-photos"),e.photos||[],removeTodayPhoto);
@@ -448,6 +453,7 @@ textarea{min-height:46px}
   function renderGeo(e){const box=$("t-geo");
     if(e&&e.start&&e.geo){box.innerHTML=`Место прибытия отмечено по GPS · <a href="${mapUrl(e.geo)}" target="_blank" rel="noopener">на карте</a>`;return}
     if(geo){box.innerHTML=`Вы здесь: <b>${esc(geo.addr)}</b> · <a href="${mapUrl(geo)}" target="_blank" rel="noopener">на карте</a>`;return}
+    if(document.documentElement.dataset.geo==="denied"){box.textContent="Геопозиция выключена для Табеля — разрешите её в настройках телефона или впишите объект вручную";return}
     box.textContent="Определяю, где вы…";}
   window.addEventListener("hashchange",readGeo);
   function lastPlace(){const ks=Object.keys(days).sort();for(let i=ks.length-1;i>=0;i--){if(days[ks[i]].place)return days[ks[i]].place}return ""}
@@ -458,7 +464,13 @@ textarea{min-height:46px}
     if(await saveDay(e)){days[k]=e;tDirty.clear();renderToday();toast(prev.start?"Уже отмечено в "+prev.start:"Приезд отмечен")}
   });
   $("b-out").addEventListener("click",async()=>{
-    const k=todayKey(),prev=days[k];if(!prev)return;
+    const k=todayKey(),prev=days[k];
+    if(!prev||!prev.start){
+      /* после полуночи: вчерашняя смена не закрыта — закрываем её концом дня */
+      const yk=key(addDays(new Date(),-1)),y=days[yk];
+      if(y&&y.start&&!y.end){if(!confirm("Сегодняшней смены нет, а вчера («Приехал» в "+y.start+") не нажат «Уехал». Закрыть вчерашний день в 23:59?"))return;const ye={...y,end:"23:59"};if(await saveDay(ye)){days[yk]=ye;renderAll();toast("Вчерашняя смена закрыта в 23:59 — поправьте время в журнале, если нужно")}return}
+      toast("Сначала нажмите «Приехал»");return}
+    if(prev.end&&!confirm("Уход уже отмечен в "+prev.end+". Заменить на "+nowHM()+"?"))return;
     const e={...todayDraft(prev),end:nowHM(),place:$("t-place").value.trim()||prev.place};
     if(await saveDay(e)){days[k]=e;tDirty.clear();renderToday();toast("Отъезд отмечен. Допишите, что сделали");$("t-work").focus()}
   });
@@ -602,11 +614,11 @@ textarea{min-height:46px}
     $("s-places").textContent=new Set(list.map(e=>(e.place||"").trim()).filter(Boolean)).size;
     const box=$("l-list");
     const notes=list.filter(e=>(e.extra||"").trim());
-    $("l-notes").innerHTML=notes.length?notes.map(e=>{const d=parse(e.date);return `<div class="note"><div><div class="d">${ddmm(e.date)}</div><div class="wd">${WD[d.getDay()].slice(0,2)}</div></div><div style="min-width:0"><div class="t">${esc(e.extra)}</div>${e.place?`<div class="pl">${esc(e.place)}</div>`:""}</div></div>`}).join(""):'<div class="empty">Заметок за этот месяц нет. Пишите их на вкладке «Сегодня» в поле «Заметка для себя».</div>';
+    $("l-notes").innerHTML=notes.length?notes.map(e=>{const d=parse(e.date);return `<div class="note"><div><div class="d">${ddmm(e.date)}</div><div class="wd">${WDS[d.getDay()]}</div></div><div style="min-width:0"><div class="t no-i18n">${esc(e.extra)}</div>${e.place?`<div class="pl no-i18n">${esc(e.place)}</div>`:""}</div></div>`}).join(""):'<div class="empty">Заметок за этот месяц нет. Пишите их на вкладке «Сегодня» в поле «Заметка для себя».</div>';
     if(!list.length){box.innerHTML='<div class="empty">В этом месяце записей нет. Отметьте приезд на вкладке «Сегодня» или добавьте день вручную.</div>';return}
     box.innerHTML=list.map(e=>{const d=parse(e.date);return `<div class="day" data-k="${e.date}" tabindex="0" role="button">
-      <div><div class="d">${ddmm(e.date)}</div><div class="wd">${WD[d.getDay()].slice(0,2)}</div></div>
-      <div style="min-width:0"><div class="w">${esc(e.work)||'<span class="chip warn">нет описания работ</span>'}${e.photos&&e.photos.length?"":' <span class="chip warn">нет фото</span>'}</div><div class="p">${esc(e.place)}${e.extra?" · "+esc(e.extra):""}${e.photos&&e.photos.length?" · "+e.photos.length+" фото":""}${e.geo?` · <a href="${mapUrl(e.geo)}" target="_blank" rel="noopener" data-map="1">карта</a>`:""}${e.driveFolder&&e.photos&&e.photos.length?` · <a href="${esc(e.driveFolder.url)}" target="_blank" rel="noopener" data-map="1">фото для всех</a>`:""}</div></div>
+      <div><div class="d">${ddmm(e.date)}</div><div class="wd">${WDS[d.getDay()]}</div></div>
+      <div style="min-width:0"><div class="w"><span class="no-i18n">${esc(e.work)}</span>${e.work?"":'<span class="chip warn">нет описания работ</span>'}${e.photos&&e.photos.length?"":' <span class="chip warn">нет фото</span>'}</div><div class="p"><span class="no-i18n">${esc(e.place)}${e.extra?" · "+esc(e.extra):""}</span>${e.photos&&e.photos.length?" · "+e.photos.length+" фото":""}${e.geo?` · <a href="${mapUrl(e.geo)}" target="_blank" rel="noopener" data-map="1">карта</a>`:""}${e.driveFolder&&e.photos&&e.photos.length?` · <a href="${esc(e.driveFolder.url)}" target="_blank" rel="noopener" data-map="1">фото для всех</a>`:""}</div></div>
       <div><div class="h">${e.end?fmt(mins(e)):'<span class="chip warn">нет ухода</span>'}</div><div class="t">${e.start||"—"}–${e.end||"—"}</div></div></div>`}).join("");
     box.querySelectorAll(".day").forEach(el=>{const open=ev=>{if(ev&&ev.target&&ev.target.closest&&ev.target.closest("a[data-map]"))return;openEd(el.dataset.k)};el.addEventListener("click",open);el.addEventListener("keydown",ev=>{if(ev.key==="Enter")open()})});
   }
@@ -617,15 +629,16 @@ textarea{min-height:46px}
     edKey=k;delArm=false;$("ed-confirm").hidden=true;
     const e=k?days[k]:{date:todayKey(),start:"08:00",end:"17:30",breakMin:60,place:lastPlace(),work:"",extra:""};
     $("ed-title").textContent=k?"Редактировать "+ddmm(k):"Новый день";
-    $("ed-date").value=e.date;$("ed-start").value=e.start||"";$("ed-end").value=e.end||"";$("ed-break").value=String(e.breakMin??60);
+    $("ed-date").value=e.date;$("ed-start").value=e.start||"";$("ed-end").value=e.end||"";setBreak($("ed-break"),e.breakMin??60);
     $("ed-place").value=e.place||"";$("ed-work").value=e.work||"";$("ed-extra").value=e.extra||"";
     edPhotos=[...(e.photos||[])];edRemoved=[];edRemovedDrive=[];renderEdPhotos();$("ed-del").hidden=!k;$("ed").hidden=false;$("ed").scrollIntoView({behavior:"smooth",block:"start"});
   }
   $("l-add").addEventListener("click",()=>openEd(null));
-  $("ed-cancel").addEventListener("click",()=>{$("ed").hidden=true});
+  $("ed-cancel").addEventListener("click",()=>{$("ed").hidden=true;const fresh=edPhotos.filter(p=>edPending.has(p.id)).map(p=>p.id);edPending.clear();if(fresh.length)dropAssets(fresh);edPhotos=[];edRemoved=[];edRemovedDrive=[]});
   $("ed-save").addEventListener("click",async()=>{
     const e={date:$("ed-date").value,start:$("ed-start").value,end:$("ed-end").value,breakMin:Number($("ed-break").value),place:$("ed-place").value.trim(),work:$("ed-work").value.trim(),extra:$("ed-extra").value.trim(),photos:edPhotos,driveFolder:(edKey&&days[edKey]&&days[edKey].driveFolder)||null,geo:(edKey&&days[edKey]&&days[edKey].geo)||null};
     if(!e.date){toast("Укажите дату");return}
+    if(e.date!==edKey&&days[e.date]){toast("На "+ddmm(e.date)+" уже есть запись — откройте её в журнале");return}
     if(edKey&&edKey!==e.date){await delDay(edKey);delete days[edKey]}
     if(await saveDay(e)){days[e.date]=e;$("ed").hidden=true;renderAll();toast("Сохранено");dropAssets(edRemoved);edRemoved=[];trashDrive(edRemovedDrive);edRemovedDrive=[];const pend=e.photos.filter(p=>edPending.has(p.id)).map(p=>({id:p.id,blob:edPending.get(p.id)}));edPending.clear();if(pend.length)pushToDrive(e.date,pend)}
   });
@@ -638,7 +651,8 @@ textarea{min-height:46px}
   let repWeek=monday(new Date());
   function weekData(mon){
     const rows=[];for(let i=0;i<6;i++){const d=addDays(mon,i);rows.push({d,e:days[key(d)]})}
-    const last=rows[5].e?5:4;
+    const sun=days[key(addDays(mon,6))];if(sun)rows.push({d:addDays(mon,6),e:sun});
+    const last=sun?6:rows[5].e?5:4;
     const total=rows.reduce((a,r)=>a+(r.e?mins(r.e):0),0);
     const m1=MON[mon.getMonth()],m2=MON[addDays(mon,last).getMonth()];
     return {rows,from:mon.getDate(),to:addDays(mon,last).getDate(),month:m1===m2?m1:m1+"–"+m2,total};
@@ -661,7 +675,7 @@ textarea{min-height:46px}
     $("r-week").textContent=`${w.from}–${w.to} ${w.month}`;
     $("sheet").innerHTML=sheetHTML(repWeek);
     renderDriveLine();
-    $("c-name").value=cfg.name;
+    if(document.activeElement!==$("c-name"))$("c-name").value=cfg.name;
   }
   $("r-sync").addEventListener("click",()=>syncWeek(repWeek));
   $("r-prev").addEventListener("click",()=>{repWeek=addDays(repWeek,-7);renderReport()});
@@ -698,7 +712,7 @@ textarea{min-height:46px}
     finally{host.remove();btn.disabled=false;btn.textContent=label}
   }
   $("r-dl").addEventListener("click",()=>{
-    const ref=repWeek, y=ref.getFullYear(), m=addDays(ref,2).getMonth();
+    const ref=repWeek, y=addDays(ref,2).getFullYear(), m=addDays(ref,2).getMonth();
     const first=new Date(y,m,1), last=new Date(y,m+1,0);
     const mons=[];for(let mon=monday(first);mon<=last;mon=addDays(mon,7))mons.push(mon);
     makePdf(mons,`Отчеты_ANK_${MON[m]}_${y}.pdf`,$("r-dl"));
@@ -708,7 +722,7 @@ textarea{min-height:46px}
     makePdf([repWeek],`Отчет_ANK_${w.from}-${w.to}_${w.month}.pdf`,$("r-dlw"));
   });
   $("c-save").addEventListener("click",async()=>{
-    cfg={...cfg,name:$("c-name").value.trim()||DEF_CFG.name};
+    cfg={...cfg,name:$("c-name").value.trim()};
     if(!db){toast("Журнал недоступен");return}
     try{await db.doc("config/main").set(cfg);toast("Настройки сохранены");renderReport()}catch(e){toast("Не сохранилось")}
   });
@@ -736,7 +750,7 @@ textarea{min-height:46px}
       if(!snap.metadata.fromCache&&!startTabChosen){startTabChosen=true;const t=days[todayKey()];if(!(t&&t.start)&&!geo)selectTab("route")}
     },err=>{clearTimeout(timer);setStatus("Журнал недоступен: "+(err.code==="revoked"?"доступ закрыт.":"ошибка связи. Обновите страницу позже."))});
     db.collection("weeks").onSnapshot(sn=>{const w={};sn.docs.forEach(d=>{const v=d.data();if(v)w[d.id]=v});weeks=w;if(!$("p-report").hidden)renderReport()},()=>{});
-    db.doc("config/main").onSnapshot(s=>{if(s.exists){cfg={...DEF_CFG,...s.data()};$("who").textContent=cfg.name+" · Ingeniería y reformas ANK";if(!$("p-report").hidden)renderReport()}},()=>{});
+    db.doc("config/main").onSnapshot(s=>{if(s.exists){cfg={...DEF_CFG,...s.data()};$("who").textContent=(cfg.name?cfg.name+" · ":"")+"Ingeniería y reformas ANK";if(!$("p-report").hidden)renderReport()}},()=>{});
   })();
 })();
 </script>
