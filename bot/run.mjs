@@ -1,7 +1,8 @@
 /* Бот уведомлений Табель ANK. Запускается по расписанию в GitHub Actions (каждые 15 минут):
    неявка утром, нет «Уехал» вечером, опоздания, новые сообщения рабочих, утренний и вечерний итог,
    рассылки рабочим (push / Telegram / WhatsApp), письма и WhatsApp клиентам (очередь mailq, автонапоминания о счетах),
-   недельный email-отчёт. Читает Firestore анонимно (ключ публичный). */
+   недельный email-отчёт. Входит в Firestore как служебный аккаунт бота (BOT_PASSWORD в секретах GitHub);
+   без секрета — анонимно, как раньше (тогда часть данных по правилам доступа недоступна). */
 import webpush from "web-push";
 
 const FB_KEY = "AIzaSyDfVV7s3V6Eo4C9_dN9vDuTP69W6xFT3xk";
@@ -12,6 +13,11 @@ const VAPID_PRIVATE = process.env.VAPID_PRIVATE || "";
 const TG = process.env.TELEGRAM_TOKEN || "";
 const WA_TOKEN = process.env.WA_TOKEN || "", WA_PHONE_ID = process.env.WA_PHONE_ID || "";
 const TZ = "Europe/Madrid";
+const BOT_EMAIL = process.env.BOT_EMAIL || "bot@tabel-ank.app", BOT_PW = process.env.BOT_PASSWORD || "";
+/* праздники Comunitat Valenciana по умолчанию — те же, что в кабинете (cfg.holidays == null) */
+const HOLIDAYS_DEFAULT = "2026-01-01,2026-01-06,2026-01-22,2026-03-19,2026-04-03,2026-04-06,2026-04-13,2026-05-01,2026-06-24,2026-08-15,2026-10-09,2026-10-12,2026-11-02,2026-12-07,2026-12-08,2026-12-25,2027-01-01,2027-01-06,2027-01-22,2027-03-19,2027-03-26,2027-03-29,2027-04-05,2027-05-01,2027-06-24,2027-08-16,2027-10-09,2027-10-12,2027-11-01,2027-12-06,2027-12-08,2027-12-25";
+const h = s => String(s ?? "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+const safeUrl = u => String(u).replace(/(api\.telegram\.org\/bot)[^/]+/, "$1***").replace(/key=[^&]+/, "key=…");
 const ROOT = `projects/${PROJECT}/databases/(default)/documents`;
 const BASE = `https://firestore.googleapis.com/v1/${ROOT}`;
 const H = { "Content-Type": "application/json", Referer: SITE };
@@ -22,8 +28,19 @@ const encF = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== u
 const dec = v => !v ? null : "stringValue" in v ? v.stringValue : "integerValue" in v ? Number(v.integerValue) : "doubleValue" in v ? v.doubleValue : "booleanValue" in v ? v.booleanValue : "arrayValue" in v ? (v.arrayValue.values || []).map(dec) : "mapValue" in v ? decF(v.mapValue.fields || {}) : null;
 const decF = f => Object.fromEntries(Object.entries(f || {}).map(([k, v]) => [k, dec(v)]));
 let token = "";
-async function j(url, opt = {}) { const own = opt.headers && opt.headers.Authorization; const r = await fetch(url, { ...opt, headers: { ...H, ...(opt.headers || {}), ...(token && !own ? { Authorization: "Bearer " + token } : {}) } }); const t = await r.text(); let b = {}; try { b = JSON.parse(t) } catch {} if (!r.ok) throw new Error(`${r.status} ${url.slice(0, 80)} ${t.slice(0, 200)}`); return b }
-async function auth() { const b = await j(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FB_KEY}`, { method: "POST", body: JSON.stringify({ returnSecureToken: true }) }); token = b.idToken }
+async function j(url, opt = {}) { const own = opt.headers && opt.headers.Authorization; const r = await fetch(url, { signal: AbortSignal.timeout(20000), ...opt, headers: { ...H, ...(opt.headers || {}), ...(token && !own ? { Authorization: "Bearer " + token } : {}) } }); const t = await r.text(); let b = {}; try { b = JSON.parse(t) } catch {} if (!r.ok) throw new Error(`${r.status} ${safeUrl(url).slice(0, 90)} ${t.slice(0, 200)}`); return b }
+const idp = (m, body) => j(`https://identitytoolkit.googleapis.com/v1/accounts:${m}?key=${FB_KEY}`, { method: "POST", body: JSON.stringify({ ...body, returnSecureToken: true }) });
+let authMode = "anon";
+async function auth() {
+  if (BOT_PW) {
+    try { token = (await idp("signInWithPassword", { email: BOT_EMAIL, password: BOT_PW })).idToken; authMode = "bot"; return }
+    catch (e) {
+      if (/EMAIL_NOT_FOUND|INVALID_LOGIN_CREDENTIALS/.test(e.message)) { try { token = (await idp("signUp", { email: BOT_EMAIL, password: BOT_PW })).idToken; authMode = "bot"; console.log("bot: аккаунт", BOT_EMAIL, "создан"); return } catch (e2) { console.log("bot auth: не удалось войти/создать аккаунт бота —", e2.message.slice(0, 120)) } }
+      else console.log("bot auth:", e.message.slice(0, 120));
+    }
+  } else console.log("bot: секрет BOT_PASSWORD не задан — работаю анонимно (ограниченный доступ)");
+  token = (await idp("signUp", {})).idToken;
+}
 const get = async p => { try { const d = await j(`${BASE}/${p}`); return decF(d.fields) } catch (e) { if (/^404/.test(e.message)) return null; throw e } };
 const list = async c => ((await j(`${BASE}/${c}?pageSize=300`)).documents || []).map(d => ({ id: d.name.slice(d.name.lastIndexOf("/") + 1), ...decF(d.fields) }));
 const batchGet = async paths => paths.length ? (await j(`${BASE}:batchGet`, { method: "POST", body: JSON.stringify({ documents: paths.map(p => `${ROOT}/${p}`) }) })).filter(x => x.found).map(x => ({ id: x.found.name.slice(x.found.name.lastIndexOf("/") + 1), ...decF(x.found.fields) })) : [];
@@ -74,7 +91,7 @@ async function sendWa(phones, text, cfg) {
   }
   return n;
 }
-async function mailer() { const nodemailer = (await import("nodemailer")).default; return process.env.MAIL_DRY ? nodemailer.createTransport({ jsonTransport: true }) : nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT || 465), secure: String(process.env.SMTP_SECURE || "true") !== "false", auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } }) }
+async function mailer() { const nodemailer = (await import("nodemailer")).default; return process.env.MAIL_DRY ? nodemailer.createTransport({ jsonTransport: true }) : nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT || 465), secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE !== "false" : Number(process.env.SMTP_PORT || 465) === 465, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } }) }
 const smtpOk = () => !!(process.env.SMTP_HOST || process.env.MAIL_DRY);
 /* очередь писем клиентам (mailq): email + WhatsApp */
 async function processMailq(cfg, workers) {
@@ -82,7 +99,7 @@ async function processMailq(cfg, workers) {
   let n = 0;
   for (const m of q) {
     let sentMail = false, sentWa = 0, err = "";
-    if (m.to && smtpOk()) { try { const tr = await mailer(); await tr.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to: m.to, subject: m.subject || "ANK", text: m.text || "", html: `<div style="font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#111;max-width:640px;white-space:pre-wrap">${String(m.text || "").replace(/[<>&]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c])).replace(/(https?:\/\/\S+)/g, '<a href="$1">$1</a>')}</div>` }); sentMail = true } catch (e) { err = e.message.slice(0, 160); console.log("mailq mail err", err) } }
+    if (m.to && smtpOk()) { try { const tr = await mailer(); await tr.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to: m.to, subject: m.subject || "ANK", text: m.text || "", html: `<div style="font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#111;max-width:640px;white-space:pre-wrap">${String(m.text || "").replace(/[<>&]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c])).replace(/(https?:\/\/[^\s<>"')]+)/g, '<a href="$1">$1</a>')}</div>` }); sentMail = true } catch (e) { err = e.message.slice(0, 160); console.log("mailq mail err", err) } }
     if (m.phone && m.wa !== false) sentWa = await sendWa([m.phone], (m.subject ? m.subject + "\n\n" : "") + (m.text || ""), cfg);
     let ok = sentMail || sentWa > 0;
     if (!ok) {
@@ -99,14 +116,14 @@ async function processMailq(cfg, workers) {
 /* автоматические напоминания о просроченных счетах (раз в 7 дней), если включено в настройках.
    Бот не имеет доступа к invoices — кабинет кладёт список неоплаченных счетов в bot/invdue */
 async function autoInvoiceReminders(cfg, state, companyD) {
-  if (!cfg.invAutoRemind) return 0; let due = null; try { due = await get("bot/invdue") } catch { return 0 }
+  if (!cfg.invAutoRemind) return 0; const hm = nowParts().hm; if (hm < 9 * 60 || hm >= 20 * 60) return 0; let due = null; try { due = await get("bot/invdue") } catch { return 0 }
   const inv = (due && due.on !== false && Array.isArray(due.items)) ? due.items : []; if (!inv.length) return 0;
   let objs = [], portals = []; try { [objs, portals] = await Promise.all([list("objects"), list("portal")]) } catch {}
   const today = nowParts().date, dueDays = Number(cfg.invDue) || 30, co = companyD || {}; state.invRem = state.invRem || {}; let n = 0;
   const addD = (k, d) => { const x = new Date(k + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + d); return x.toISOString().slice(0, 10) };
   const objId = place => { let h = 0; const s2 = String(place || "").trim().toLowerCase(); for (let i = 0; i < s2.length; i++) h = (h * 33 + s2.charCodeAt(i)) >>> 0; return "o" + h.toString(36) };
   for (const x of inv) {
-    if (!x.date || !x.id) continue; const dueK = addD(x.date, dueDays); if (dueK > today) continue;
+    if (!x.id || !/^\d{4}-\d\d-\d\d$/.test(String(x.date || ""))) continue; const dueK = addD(x.date, dueDays); if (dueK >= today) continue;
     const last = Math.max(state.invRem[x.id] || 0, x.lastRem || 0); if (Date.now() - last < 7 * 86400e3) continue;
     const meta = objs.find(o => o.id === objId(x.object)) || {}, email = (x.client && x.client.email) || (meta.client && meta.client.email) || "", phone = (x.client && x.client.phone) || (meta.client && meta.client.phone) || "";
     if (!email && !phone) continue;
@@ -141,8 +158,8 @@ async function weeklyMail(cfg, rows, today, to) {
   const tot = per.reduce((a, p) => ({ h: a.h + p.h, ot: a.ot + p.ot, n: a.n + p.n }), { h: 0, ot: 0, n: 0 });
   const objs = {}; per.forEach(p => Object.entries(p.objs).forEach(([k, v]) => { objs[k] = (objs[k] || 0) + v }));
   const title = `Отчёт за неделю ${from.slice(8)}.${from.slice(5, 7)} – ${to7.slice(8)}.${to7.slice(5, 7)}`;
-  const tr = per.sort((a, b) => b.h - a.h).map(p => `<tr><td>${p.name}</td><td align="right">${p.n}</td><td align="right">${fmt(p.h)}</td><td align="right">${p.ot ? fmt(p.ot) : ""}</td><td align="right">${p.late || ""}</td><td align="right">${p.open || ""}</td></tr>`).join("");
-  const otr = Object.entries(objs).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<tr><td>${k}</td><td align="right">${fmt(v)}</td></tr>`).join("");
+  const tr = per.sort((a, b) => b.h - a.h).map(p => `<tr><td>${h(p.name)}</td><td align="right">${p.n}</td><td align="right">${fmt(p.h)}</td><td align="right">${p.ot ? fmt(p.ot) : ""}</td><td align="right">${p.late || ""}</td><td align="right">${p.open || ""}</td></tr>`).join("");
+  const otr = Object.entries(objs).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<tr><td>${h(k)}</td><td align="right">${fmt(v)}</td></tr>`).join("");
   const html = `<div style="font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#111;max-width:720px"><h2 style="margin:0 0 4px">${title}</h2><p style="color:#555;margin:0 0 14px">Ingeniería y reformas ANK · ${rows.length} рабочих · норма ${wdays * Number(cfg.norm || 8)} ч на человека</p>
   <table cellpadding="6" style="border-collapse:collapse;width:100%;font-size:13px"><tr style="background:#f2f5fa"><td><b>Итого</b></td><td align="right"><b>${tot.n} смен</b></td><td align="right"><b>${fmt(tot.h)} ч</b></td><td align="right">${tot.ot ? "+" + fmt(tot.ot) : ""}</td><td></td><td></td></tr></table>
   <h3 style="margin:16px 0 6px">Рабочие</h3><table cellpadding="6" style="border-collapse:collapse;width:100%;font-size:13px;border:1px solid #e3e6ec"><tr style="background:#f2f5fa"><th align="left">Рабочий</th><th align="right">Смен</th><th align="right">Часы</th><th align="right">Сверх</th><th align="right">Опозд.</th><th align="right">Без «Уехал»</th></tr>${tr}</table>
@@ -167,13 +184,13 @@ async function main() {
   const cfg = { start: "08:00", grace: 15, norm: 8, digest: "21:00", morning: "09:30", noout: "20:00", planNotify: "18:30", mailAt: "08:00", ...(cfgD || {}) };
   const staffPush = pushes.filter(p => p.kind !== "worker"), workerPush = pushes.filter(p => p.kind === "worker" && p.uid);
   const staffTg = tgs.filter(c => !c.uid), workerTg = tgs.filter(c => c.uid);
-  const holidays = new Set(String(cfg.holidays == null ? "" : cfg.holidays).split(/[,\s]+/).filter(Boolean));
+  const holidays = new Set(String(cfg.holidays == null ? HOLIDAYS_DEFAULT : cfg.holidays).split(/[,\s]+/).filter(Boolean));
   const absent = (uid, date) => absences.some(a => a.uid === uid && a.from <= date && a.to >= date);
   const workers = (wl && wl.list) || [];
   const state = { sent: {}, ...(stateD || {}) };
   const now = nowParts(), today = now.date, weekday = now.wd >= 1 && now.wd <= 5 && !holidays.has(now.date);
   const late = toMin(cfg.start) + Number(cfg.grace || 0), noinAt = late + 30, nooutAt = toMin(cfg.noout || "20:00"), morningAt = toMin(cfg.morning || "09:30"), eveningAt = toMin(cfg.digest || "21:00");
-  console.log("now", today, fmt(now.hm), "workers", workers.length, "tg", tgs.length, "push", pushes.length);
+  console.log("now", today, fmt(now.hm), "auth", authMode, "workers", workers.length, "tg", tgs.length, "push", pushes.length);
   await tgUpdates(state, tgs);
 
   const ledgers = await batchGet(workers.map(w => `workers/${w.id}`));
@@ -205,14 +222,16 @@ async function main() {
   if (weekday && now.hm >= morningAt && now.hm < morningAt + 45) once(`morning:${today}`, "morning", `Утро: на объектах ${onsite.length + done.length} из ${rows.length - away.length}`, (onsite.length ? "На объекте: " + onsite.map(r => `${first(r.name)} (${r.e.place || "?"}, с ${r.e.start})`).join(", ") + ". " : "") + (none.length ? "Не отметились: " + none.map(r => first(r.name)).join(", ") + "." : "Все отметились.") + (away.length ? " Отсутствуют: " + away.map(r => first(r.name)).join(", ") + "." : "") + (remItems.length ? "\nСроки: " + remItems.map(x => x.t).join("; ") : ""));
   if (now.hm >= eveningAt && now.hm < eveningAt + 45) { const tot = done.reduce((a, r) => a + mins(r.e), 0); once(`evening:${today}`, "evening", `Итог дня: ${fmt(tot)} ч, смен ${done.length}`, (done.map(r => `${first(r.name)} ${fmt(mins(r.e))}`).join(", ") || "Закрытых смен нет") + (onsite.length ? ". Без «Уехал»: " + onsite.map(r => first(r.name)).join(", ") : "") + (none.length && weekday ? ". Не выходили: " + none.map(r => first(r.name)).join(", ") : "")) }
   /* статус по запросу в Telegram */
-  for (const c of tgs.filter(c => c.wantStatus)) await sendTg([c], "x", `<b>${today} ${fmt(now.hm)}</b>\nНа объекте: ${onsite.map(r => `${first(r.name)} (${r.e.place || "?"})`).join(", ") || "никого"}\nЗакончили: ${done.map(r => `${first(r.name)} ${fmt(mins(r.e))}`).join(", ") || "—"}\nНе отметились: ${none.map(r => first(r.name)).join(", ") || "—"}`);
+  for (const c of tgs.filter(c => c.wantStatus)) await sendTg([c], "x", `<b>${today} ${fmt(now.hm)}</b>\nНа объекте: ${h(onsite.map(r => `${first(r.name)} (${r.e.place || "?"})`).join(", ") || "никого")}\nЗакончили: ${h(done.map(r => `${first(r.name)} ${fmt(mins(r.e))}`).join(", ") || "—")}\nНе отметились: ${h(none.map(r => first(r.name)).join(", ") || "—")}`);
 
   let sentPush = 0, sentTg = 0;
   for (const a of alerts) {
     sentPush += await sendPush(staffPush, a.kind, a.title, a.body, SITE + "boss.html" + (a.kind === "msg" ? "#v=inbox" : ""));
-    sentTg += await sendTg(staffTg, a.kind, `<b>${a.title}</b>\n${a.body}`);
+    sentTg += await sendTg(staffTg, a.kind, `<b>${h(a.title)}</b>\n${h(a.body)}`);
     state.sent[a.key] = Date.now();
   }
+  const saveState = async () => { try { await set("bot/state", state) } catch (e) { console.log("state", e.message.slice(0, 80)) } };
+  if (alerts.length) await saveState();
   /* рассылка рабочим */
   for (const b of bcs.filter(x => !x.sent)) {
     const to = b.to === "all" ? null : (Array.isArray(b.to) ? b.to : []);
@@ -220,7 +239,7 @@ async function main() {
     const subs = workerPush.filter(p => !to || to.includes(p.uid)), chats = workerTg.filter(c => !to || to.includes(c.uid)), phones = workers.filter(w => w.phone && (!to || to.includes(w.id))).map(w => w.phone);
     let n = 0, nwa = 0;
     if (ch.push !== false) n += await sendPush(subs, "bc", `${b.by || "Руководитель"}: сообщение`, b.text, SITE, "worker");
-    if (ch.tg !== false) n += await sendTg(chats, "bc", `<b>${b.by || "Руководитель"}</b>\n${b.text}`);
+    if (ch.tg !== false) n += await sendTg(chats, "bc", `<b>${h(b.by || "Руководитель")}</b>\n${h(b.text)}`);
     if (ch.wa) nwa = await sendWa(phones, `${b.by || "ANK"}: ${b.text}`, cfg);
     try { await patch(`broadcast/${b.id}`, { sent: true, sentTs: Date.now(), n, nwa }) } catch (e) { console.log("bc patch", e.message.slice(0, 80)) }
     console.log("broadcast", b.id, "→", n, "wa", nwa);
@@ -229,21 +248,21 @@ async function main() {
   const planAt = toMin(cfg.planNotify || "18:30");
   if (now.hm >= planAt && now.hm < planAt + 45 && !state.sent[`plan:${today}`]) {
     const tmr = new Date(today + "T12:00:00Z"); tmr.setUTCDate(tmr.getUTCDate() + 1); const tk = tmr.toISOString().slice(0, 10);
-    const plan = await get(`plans/${tk}`);
+    let plan = null; try { plan = await get(`plans/${tk}`) } catch (e) { console.log("plan", e.message.slice(0, 80)) }
     if (plan && plan.w) for (const uid of Object.keys(plan.w)) {
       const x = plan.w[uid]; if (!x || !(x.place || (x.items && x.items.length))) continue;
       const items = (x.items || []).map(i => typeof i === "string" ? i : i.text).filter(Boolean);
       const body = `${x.place ? "📍 " + x.place : ""}${items.length ? "\n• " + items.join("\n• ") : ""}${x.note ? "\n💬 " + x.note : ""}`.trim();
       await sendPush(workerPush.filter(p => p.uid === uid), "plan", `План на завтра · ${tk.slice(8)}.${tk.slice(5, 7)}`, body.replace(/\n/g, " "), SITE, "worker");
-      await sendTg(workerTg.filter(c => c.uid === uid), "plan", `<b>План на завтра · ${tk.slice(8)}.${tk.slice(5, 7)}</b>\n${body}`);
+      await sendTg(workerTg.filter(c => c.uid === uid), "plan", `<b>План на завтра · ${tk.slice(8)}.${tk.slice(5, 7)}</b>\n${h(body)}`);
     }
-    state.sent[`plan:${today}`] = Date.now();
+    state.sent[`plan:${today}`] = Date.now(); await saveState();
   }
   /* /plan по запросу рабочего в Telegram */
   for (const c of workerTg.filter(c => c.wantPlan)) {
     const tmr = new Date(today + "T12:00:00Z"); tmr.setUTCDate(tmr.getUTCDate() + 1); const tk = tmr.toISOString().slice(0, 10);
-    const [p1, p2] = await Promise.all([get(`plans/${today}`), get(`plans/${tk}`)]);
-    const fmtP = (p, label) => { const x = p && p.w && p.w[c.uid]; if (!x || !(x.place || (x.items && x.items.length))) return `${label}: плана нет`; return `<b>${label}</b>: ${x.place || ""}${(x.items || []).length ? "\n• " + x.items.map(i => (i.done ? "✓ " : "") + (i.text || i)).join("\n• ") : ""}${x.note ? "\n💬 " + x.note : ""}` };
+    let p1 = null, p2 = null; try { [p1, p2] = await Promise.all([get(`plans/${today}`), get(`plans/${tk}`)]) } catch (e) { console.log("plan req", e.message.slice(0, 80)) }
+    const fmtP = (p, label) => { const x = p && p.w && p.w[c.uid]; if (!x || !(x.place || (x.items && x.items.length))) return `${label}: плана нет`; return `<b>${label}</b>: ${h(x.place || "")}${(x.items || []).length ? "\n• " + h(x.items.map(i => (i.done ? "✓ " : "") + (i.text || i)).join("\n• ")) : ""}${x.note ? "\n💬 " + h(x.note) : ""}` };
     await sendTg([c], "x", `${fmtP(p1, "Сегодня")}\n${fmtP(p2, "Завтра")}`);
   }
   /* недельный отчёт на email по понедельникам */
@@ -251,12 +270,11 @@ async function main() {
     try { await weeklyMail(cfg, rows, today, cfg.mailTo || process.env.MAIL_TO); state.sent[`mail:${today}`] = Date.now(); console.log("weekly mail sent") } catch (e) { console.log("mail err", e.message.slice(0, 200)) }
   }
   /* письма и WhatsApp клиентам: очередь из кабинета + автонапоминания о просроченных счетах */
-  const autoN = await autoInvoiceReminders(cfg, state, companyD);
-  const mailN = await processMailq(cfg, workers);
+  let autoN = 0, mailN = 0; try { autoN = await autoInvoiceReminders(cfg, state, companyD) } catch (e) { console.log("autorem", e.message.slice(0, 80)) } try { mailN = await processMailq(cfg, workers) } catch (e) { console.log("mailq", e.message.slice(0, 80)) }
   if (autoN || mailN) console.log("client reminders: auto", autoN, "sent", mailN);
   const cut = Date.now() - 3 * 86400e3; for (const k of Object.keys(state.sent)) if (state.sent[k] < cut) delete state.sent[k];
   state.lastRun = Date.now(); state.lastRunText = `${today} ${fmt(now.hm)}`;
-  await set("bot/state", state);
-  console.log(`alerts ${alerts.length}: ${alerts.map(a => a.key).join(", ") || "—"} | push ${sentPush} | telegram ${sentTg}`);
+  await saveState();
+  console.log(`auth ${authMode} | alerts ${alerts.length}: ${alerts.map(a => a.key).join(", ") || "—"} | push ${sentPush} | telegram ${sentTg}`);
 }
 main().catch(e => { console.error(e); process.exit(1) });
