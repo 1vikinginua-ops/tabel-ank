@@ -22,6 +22,7 @@ jobs:
       - name: Run
         run: node bot/run.mjs
         env:
+          BOT_PASSWORD: ${{ secrets.BOT_PASSWORD }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
