@@ -84,8 +84,14 @@ async function processMailq(cfg, workers) {
     let sentMail = false, sentWa = 0, err = "";
     if (m.to && smtpOk()) { try { const tr = await mailer(); await tr.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to: m.to, subject: m.subject || "ANK", text: m.text || "", html: `<div style="font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#111;max-width:640px;white-space:pre-wrap">${String(m.text || "").replace(/[<>&]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c])).replace(/(https?:\/\/\S+)/g, '<a href="$1">$1</a>')}</div>` }); sentMail = true } catch (e) { err = e.message.slice(0, 160); console.log("mailq mail err", err) } }
     if (m.phone && m.wa !== false) sentWa = await sendWa([m.phone], (m.subject ? m.subject + "\n\n" : "") + (m.text || ""), cfg);
-    const ok = sentMail || sentWa > 0 || (!m.to && !m.phone) || (!smtpOk() && !WA_TOKEN);
-    try { await patch(`mailq/${m.id}`, { sent: ok, sentTs: Date.now(), err: ok ? "" : (err || "no channel"), n: (sentMail ? 1 : 0) + sentWa }) } catch (e) { console.log("mailq patch", e.message.slice(0, 80)) }
+    let ok = sentMail || sentWa > 0;
+    if (!ok) {
+      if (!m.to && !m.phone) { ok = true; err = "нет email и телефона" }
+      else if (!smtpOk() && !WA_TOKEN) err = "бот: не настроены SMTP / WhatsApp (секреты GitHub)"
+      else if (Date.now() - (m.ts || 0) > 7 * 86400e3) { ok = true; err = err || "не удалось отправить за 7 дней" }
+      else err = err || (m.to && !smtpOk() ? "SMTP не настроен" : m.phone && !WA_TOKEN ? "WhatsApp не настроен" : "не отправлено")
+    }
+    try { await patch(`mailq/${m.id}`, { sent: ok, sentTs: ok ? Date.now() : (m.sentTs || 0), err: (sentMail || sentWa > 0) ? "" : err, n: (sentMail ? 1 : 0) + sentWa }) } catch (e) { console.log("mailq patch", e.message.slice(0, 80)) }
     if (ok) n++; console.log("mailq", m.id, m.kind, "mail", sentMail, "wa", sentWa);
   }
   return n;
