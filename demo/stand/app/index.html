@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><script src="demo.js" charset="utf-8"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Табель ANK">
+<meta name="theme-color" content="#0f1520">
+
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-512.png">
+<script src="shim.js"></script>
+</head>
+<body>
+<title>ДЕМО · Табель ANK</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one phone-width column, three tabs; the report tab mirrors the paper ANK weekly form */
+:root{
+  --bg:#eef1f5; --surface:#ffffff; --ink:#14213a; --muted:#5d6a80; --line:#d3dae5;
+  --brand:#1f4f93; --brand-ink:#ffffff; --go:#1d7a4c; --stop:#b8461f; --chip:#e3e9f3;
+  --font-ui:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-num:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1520; --surface:#18212f; --ink:#e7ecf4; --muted:#93a0b5; --line:#2b3749;
+  --brand:#5d8fd6; --brand-ink:#0b1320; --go:#3fb07a; --stop:#e07a52; --chip:#223047; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1520; --surface:#18212f; --ink:#e7ecf4; --muted:#93a0b5; --line:#2b3749;
+  --brand:#5d8fd6; --brand-ink:#0b1320; --go:#3fb07a; --stop:#e07a52; --chip:#223047; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:15px;line-height:1.45}
+.wrap{max-width:760px;margin:0 auto;padding-block:16px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
+header{display:flex;align-items:center;gap:12px}
+.logo{width:40px;height:40px;border-radius:10px;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;font-weight:800;letter-spacing:-.04em;font-size:17px}
+header h1{font-size:19px;margin:0;font-weight:700;text-wrap:balance}
+header .who{color:var(--muted);font-size:13px}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--chip);padding:4px;border-radius:12px}
+.tabs button{border:0;background:transparent;color:var(--muted);font:600 14px var(--font-ui);padding:10px 4px;border-radius:9px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.panel{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.today-date{font-size:22px;font-weight:700}
+.big-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big{border:0;border-radius:14px;padding:18px 10px;font:700 18px var(--font-ui);cursor:pointer;color:#fff;display:flex;flex-direction:column;align-items:center;gap:2px}
+.big small{font:500 13px var(--font-num);opacity:.9}
+.big.in{background:var(--go)} .big.out{background:var(--stop)}
+.big:disabled{opacity:.4;cursor:default}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500;min-width:0}
+input,textarea,select{font:16px var(--font-ui);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+input[type="time"],input[type="date"]{font-family:var(--font-num)}
+textarea{min-height:64px;resize:vertical}
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 14px var(--font-ui);padding:10px 14px;border-radius:10px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.btn.danger{color:var(--stop)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.msg{font:500 15px var(--font-ui);background:var(--bg);border:1px dashed var(--line);border-radius:10px;padding:12px;white-space:pre-wrap;word-break:break-word}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.chip{display:inline-block;background:var(--chip);border-radius:999px;padding:3px 10px;font-size:13px;font-weight:600}
+.chip.ok{color:var(--go)} .chip.warn{color:var(--stop)}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.monthnav{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.monthnav strong{font-size:17px;text-transform:capitalize;text-align:center}
+.day{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:12px;align-items:start;padding:12px 0;border-top:1px solid var(--line);cursor:pointer}
+.day:first-child{border-top:0}
+.day .d{font:700 15px var(--font-num)} .day .wd{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.day .w{font-weight:600} .day .p{font-size:13px;color:var(--muted)}
+.day .h{font:700 15px var(--font-num);text-align:right} .day .t{font:500 12px var(--font-num);color:var(--muted);text-align:right}
+.empty{color:var(--muted);text-align:center;padding:16px 0}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.stat{background:var(--bg);border-radius:10px;padding:10px}
+.stat b{display:block;font:700 20px var(--font-num)}
+.stat span{font-size:12px;color:var(--muted)}
+/* paper form replica */
+.sheet-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.sheet{min-width:780px;background:#fff;color:#111;border-radius:6px;padding:18px 18px 14px;font:12px var(--font-ui)}
+.sheet .top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:10px;font-weight:700;font-size:11px}
+.sheet .fill{font-weight:500;font-size:13px;border-bottom:1px solid #333;padding:0 6px;color:#1f3f8a;display:inline-block;min-width:40px;text-align:center}
+.sheet .ak{color:#1f4f93;font-weight:800;font-size:18px;letter-spacing:-.05em}
+.sheet table{width:100%;border-collapse:collapse;table-layout:fixed}
+.sheet th{font-size:9.5px;font-weight:700;border:1px solid #333;padding:5px 3px;text-transform:uppercase}
+.sheet td{border:1px solid #333;padding:6px 5px;height:46px;vertical-align:middle;font-size:12px;color:#1f3f8a;word-break:break-word}
+.sheet td.wd{position:relative;padding:0;overflow:hidden}
+.sheet td.wd span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-90deg);font-size:9px;font-weight:700;color:#111;text-transform:uppercase;white-space:nowrap;letter-spacing:.04em;line-height:1}
+.sheet.pdf{font-size:14px}
+.sheet.pdf tbody td{height:90px;font-size:14px}
+.sheet.pdf td.wd span{font-size:10px;letter-spacing:.02em}
+.sheet.pdf th{font-size:11px}
+.sheet.pdf .top{font-size:12px}
+.sheet.pdf .fill{font-size:15px}
+.sheet .ak{height:34px;width:auto;display:block}
+.sheet .wk{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sheet .wk>span{min-width:0}
+.sheet a{color:inherit;text-decoration:none}
+.sheet .dq{display:flex;align-items:center;gap:6px;flex:none;font-size:9px;line-height:1.2;color:#1f3f8a;text-align:right}
+.sheet .dq img{width:56px;height:56px;image-rendering:pixelated}
+.sheet.pdf .dq{font-size:11px}
+.sheet.pdf .dq img{width:66px;height:66px}
+.sheet .foot{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-top:10px}
+.sheet .foot .tot{margin-top:0}
+.sheet .qr{display:flex;align-items:center;gap:10px;font-size:10px;color:#111;max-width:60%}
+.sheet .qr img{width:78px;height:78px;image-rendering:pixelated;flex:none}
+.sheet .qr b{display:block;text-transform:uppercase;font-size:10px;margin-bottom:2px}
+.sheet .qr span{color:#1f3f8a;word-break:break-all}
+.sheet.pdf .qr img{width:100px;height:100px}
+.sheet.pdf .qr{font-size:12px}
+.sheet.pdf .qr b{font-size:12px}
+.sheet.pdf tbody td{height:82px}
+.sheet.pdf .ak{height:44px}
+.sheet tbody td{height:76px}
+.sheet .top>div{white-space:nowrap}
+.sheet .fill{white-space:nowrap}
+.sheet .tot{margin-top:10px;font-weight:700;font-size:11px}
+.note{font-size:13px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;z-index:20}
+.banner{background:var(--chip);border-radius:10px;padding:10px 12px;font-size:13px}
+.geo{font-size:13px;color:var(--muted);background:var(--bg);border-radius:10px;padding:8px 10px;line-height:1.4}
+.geo b{color:var(--ink);font-weight:600}
+.geo a,.p a{color:var(--brand);font-weight:600;text-decoration:none}
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
+.ph{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--chip);max-width:100%}
+.ph a{display:block;width:100%;height:100%;cursor:zoom-in}
+.lb{position:fixed;inset:0;z-index:30;background:#000;display:flex;flex-direction:column}
+.lb{touch-action:none;overscroll-behavior:contain}
+[hidden]{display:none!important}
+.lb-scroll{flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;touch-action:none}
+.lb-scroll img{max-width:100vw;max-height:100vh;object-fit:contain;display:block;cursor:zoom-in;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;-webkit-touch-callout:none;transform-origin:0 0;will-change:transform}
+.lb.zoom .lb-scroll img{cursor:zoom-out}
+.lb-x{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));border:0;border-radius:999px;background:rgba(255,255,255,.18);color:#fff;font:600 15px var(--font-ui);padding:9px 14px;cursor:pointer}
+.lb-nav{position:absolute;top:50%;transform:translateY(-50%);border:0;border-radius:999px;background:rgba(255,255,255,.18);color:#fff;font:700 26px var(--font-ui);width:44px;height:44px;cursor:pointer}
+.lb-prev{left:calc(10px + env(safe-area-inset-left,0px))}.lb-next{right:calc(10px + env(safe-area-inset-right,0px))}
+.lb-count{position:absolute;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom,0px));text-align:center;color:#fff;font:500 13px var(--font-num);pointer-events:none}
+.lb.zoom .lb-nav{display:none}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph button{position:absolute;top:4px;right:4px;border:0;border-radius:999px;background:rgba(0,0,0,.6);color:#fff;font:600 13px var(--font-ui);padding:3px 8px;cursor:pointer}
+@media (max-width:420px){.row{grid-template-columns:repeat(2,minmax(0,1fr))}.row .full{grid-column:1/-1}.stats b{font-size:17px}}
+/* compact layout: everything for the day fits on a phone screen */
+.wrap{gap:10px;padding-block:10px 32px}
+header{gap:10px}
+.logo{width:32px;height:32px;border-radius:8px;font-size:14px}
+header h1{font-size:16px;line-height:1.2}
+header .who{font-size:12px}
+.tabs button{padding:8px 2px;font-size:13px}
+a.big{text-decoration:none;text-align:center;justify-content:center}
+.route-q{font-size:15px;line-height:1.4}
+.route-q b{display:block;font-size:17px;margin-top:2px}
+.btn.disabled{opacity:.45;pointer-events:none}
+.note{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.note:first-child{border-top:0}
+.note .d{font:700 14px var(--font-num)}
+.note .wd{font-size:11px;color:var(--muted);text-transform:uppercase}
+.note .t{white-space:pre-wrap;word-break:break-word}
+.note .pl{font-size:12px;color:var(--muted)}
+.card{padding:12px;gap:8px;border-radius:12px}
+.panel{gap:10px}
+.dayhead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.today-date{font-size:18px}
+.geo{padding:6px 9px;font-size:12px}
+label{gap:3px;font-size:12px}
+input,textarea,select{padding:8px 10px}
+textarea{min-height:46px}
+.big{padding:11px 8px;font-size:16px;border-radius:12px}
+.big small{font-size:12px}
+.row,.row2{gap:8px}
+.btn{padding:8px 12px}
+.photos{grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
+#t-details .row{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+#t-details .row .full{grid-column:auto!important}
+@media (max-width:374px){#t-details .row{grid-template-columns:repeat(2,minmax(0,1fr))!important}#t-details .row>label:nth-child(3){grid-column:1/-1!important}#t-details .row input[type="time"]{padding:12px 6px;font-size:14px;letter-spacing:-.02em}}
+#t-details input[type="time"],#t-details select{padding:8px 6px;font-size:15px}
+#t-details textarea{min-height:40px}
+.chip:empty{display:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="logo" aria-hidden="true">AK</div>
+    <div><h1>Табель ANK</h1><div class="who" id="who">Ingeniería y reformas ANK</div></div>
+  </header>
+
+  <div class="banner" id="status">Загружаю журнал…</div>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tab-route" aria-selected="false" data-tab="route">Маршрут</button>
+    <button role="tab" id="tab-today" aria-selected="true" data-tab="today">Сегодня</button>
+    <button role="tab" id="tab-log" aria-selected="false" data-tab="log">Журнал</button>
+    <button role="tab" id="tab-report" aria-selected="false" data-tab="report">Отчёт</button>
+  </nav>
+
+  <!-- ROUTE -->
+  <section class="panel" id="p-route" hidden>
+    <div class="card">
+      <div class="eyebrow">Куда едем?</div>
+      <div class="route-q" id="rt-q">Загружаю последние объекты…</div>
+      <a class="big in" id="rt-go" target="_blank" rel="noopener" hidden>Да, проложить маршрут<small>откроются Google Карты</small></a>
+      <label>Или другой адрес<input id="rt-other" list="places" placeholder="Например: Enforza, Paterna" autocomplete="off"></label>
+      <div class="btns">
+        <a class="btn primary disabled" id="rt-go2" target="_blank" rel="noopener">Маршрут на этот адрес</a>
+        <button class="btn" type="button" id="rt-here">Я уже на объекте</button>
+      </div>
+    </div>
+    <div class="card" id="rt-recent-card" hidden>
+      <div class="eyebrow">Недавние объекты</div>
+      <div class="btns" id="rt-recent"></div>
+    </div>
+  </section>
+
+  <!-- TODAY -->
+  <section class="panel" id="p-today">
+    <div class="card">
+      <div class="dayhead"><div class="today-date" id="t-date">—</div><div class="eyebrow" id="t-wd">—</div></div>
+      <div class="geo" id="t-geo"></div>
+      <label>Объект
+        <input id="t-place" list="places" placeholder="Например: C/ Cartagena 3, Valencia" autocomplete="off">
+      </label>
+      <div class="big-btns">
+        <button class="big in" id="b-in">Приехал<small id="b-in-s">отметить время</small></button>
+        <button class="big out" id="b-out">Уехал<small id="b-out-s">отметить время</small></button>
+      </div>
+    </div>
+
+    <div class="card" id="t-details" hidden>
+      <div class="eyebrow">Что сделал сегодня</div>
+      <label>Реализованные работы
+        <textarea id="t-work" placeholder="Например: сантехника, разводка труб в с/у"></textarea>
+      </label>
+      <div class="photos" id="t-photos" hidden></div>
+      <input type="file" id="t-file" accept="image/*" multiple hidden>
+      <div class="row">
+        <label>Начало<input type="time" id="t-start"></label>
+        <label>Окончание<input type="time" id="t-end"></label>
+        <label class="full">Перерыв
+          <select id="t-break"><option value="0">нет</option><option value="30">30 мин</option><option value="60">1 ч</option><option value="90">1 ч 30</option></select>
+        </label>
+      </div>
+      <label>Заметка для себя (доплаты, материалы)
+        <input id="t-extra" placeholder="Например: 70 € подключение">
+      </label>
+      <div class="btns"><button class="btn primary" id="t-save">Сохранить</button><button class="btn" type="button" id="t-addph">+ Фото</button><span class="chip num" id="t-hours"></span></div>
+    </div>
+  </section>
+
+  <!-- LOG -->
+  <section class="panel" id="p-log" hidden>
+    <div class="card">
+      <div class="monthnav">
+        <button class="btn" id="l-prev" aria-label="Предыдущий месяц">‹</button>
+        <strong id="l-month">—</strong>
+        <button class="btn" id="l-next" aria-label="Следующий месяц">›</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><b class="num" id="s-days">0</b><span>дней</span></div>
+        <div class="stat"><b class="num" id="s-hours">0:00</b><span>часов</span></div>
+        <div class="stat"><b class="num" id="s-places">0</b><span>объектов</span></div>
+      </div>
+      <div id="l-list"></div>
+      <button class="btn" id="l-add">+ Добавить день вручную</button>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Мои заметки за месяц</div>
+      <div id="l-notes"></div>
+    </div>
+
+    <div class="card" id="ed" hidden>
+      <div class="eyebrow" id="ed-title">Редактировать день</div>
+      <div class="row">
+        <label class="full">Дата<input type="date" id="ed-date"></label>
+        <label>Начало<input type="time" id="ed-start"></label>
+        <label>Окончание<input type="time" id="ed-end"></label>
+        <label>Перерыв
+          <select id="ed-break"><option value="0">нет</option><option value="30">30 мин</option><option value="60">1 ч</option><option value="90">1 ч 30</option></select>
+        </label>
+      </div>
+      <label>Объект<input id="ed-place" list="places" autocomplete="off"></label>
+      <label>Реализованные работы<textarea id="ed-work"></textarea></label>
+      <div class="photos" id="ed-photos" hidden></div>
+      <div class="btns"><button class="btn" type="button" id="ed-addph">+ Прикрепить фото</button></div>
+      <input type="file" id="ed-file" accept="image/*" multiple hidden>
+      <label>Заметка для себя<input id="ed-extra"></label>
+      <div class="btns">
+        <button class="btn primary" id="ed-save">Сохранить</button>
+        <button class="btn" id="ed-cancel">Отмена</button>
+        <button class="btn danger" id="ed-del">Удалить день</button>
+      </div>
+      <p class="hint" id="ed-confirm" hidden>Нажмите «Удалить день» ещё раз, чтобы подтвердить.</p>
+    </div>
+  </section>
+
+  <!-- REPORT -->
+  <section class="panel" id="p-report" hidden>
+    <div class="card">
+      <div class="monthnav">
+        <button class="btn" id="r-prev" aria-label="Предыдущая неделя">‹</button>
+        <strong id="r-week">—</strong>
+        <button class="btn" id="r-next" aria-label="Следующая неделя">›</button>
+      </div>
+      <div class="sheet-scroll"><div class="sheet" id="sheet"></div></div>
+      <p class="note">Это ваш недельный лист в том же виде, что бумажный бланк. Переписать с него или распечатать.</p>
+      <div class="btns">
+        <button class="btn primary" id="r-dl">PDF за месяц</button>
+        <button class="btn" id="r-dlw">PDF этой недели</button>
+        <button class="btn" id="r-sync">Фото недели → Google Drive</button>
+        <button class="btn" id="r-copy">Скопировать текстом</button>
+      </div>
+      <p class="hint" id="r-drive"></p>
+      <p class="hint" id="r-dlhint">PDF в формате A4 (альбомный), одна неделя на страницу. Его можно распечатать или отправить в Telegram.</p>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Настройки</div>
+      <label>Имя и фамилия в отчёте<input id="c-name"></label>
+      <div class="btns"><button class="btn" id="c-save">Сохранить настройки</button></div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Резервная копия</div>
+      <p class="hint">Журнал и фото хранятся в телефоне. Раз в неделю сохраняйте копию в «Файлы» или на Google Drive, чтобы ничего не потерять при смене телефона.</p>
+      <div class="btns">
+        <button class="btn primary" type="button" id="bk-save">Сохранить копию</button>
+        <button class="btn" type="button" id="bk-load">Восстановить из копии</button>
+      </div>
+      <input type="file" id="bk-file" accept=".json,application/json" hidden>
+    </div>
+  </section>
+
+  <datalist id="places"></datalist>
+  <div class="lb" id="lb" hidden role="dialog" aria-label="Просмотр фото">
+    <div class="lb-scroll" id="lb-scroll"><img id="lb-img" alt="Фото работы"></div>
+    <button class="lb-x" id="lb-x" type="button">Закрыть</button>
+    <button class="lb-nav lb-prev" id="lb-prev" type="button" aria-label="Предыдущее фото">‹</button>
+    <button class="lb-nav lb-next" id="lb-next" type="button" aria-label="Следующее фото">›</button>
+    <div class="lb-count" id="lb-count"></div>
+  </div>
+</div>
+
+<script src="index-inline1.js" charset="utf-8"></script>
+
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+html,body{margin:0}body{font-size:14px;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;min-height:100vh}
+img{max-width:100%}
+#r-sync,#r-drive{display:none!important}
+.sv-sheet{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+.sv-box{background:var(--surface);color:var(--ink);border-radius:16px;padding:16px;width:100%;max-width:420px;display:flex;flex-direction:column;gap:10px}
+.sv-name{font-size:13px;color:var(--muted);word-break:break-all}
+.sv-btns{display:flex;gap:8px;flex-wrap:wrap}
+</style>
+<script src="index-inline2.js" charset="utf-8"></script>
+</body>
+</html>
