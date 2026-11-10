@@ -1,0 +1,232 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><link rel="icon" href="app/boss-icon-180.png"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body><title>Табель ANK — демо-стенд</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one column of working panels — roles first, then the month's numbers and its chronicle, like a site office board. */
+:root{
+  --bg:#eef2f6; --surface:#ffffff; --ink:#132030; --muted:#5a6879; --line:#d9e0e8;
+  --brand:#1f4f8a; --brand-ink:#ffffff; --accent:#d97706; --accent-soft:#fdf1df;
+  --ok:#1d7f55; --ok-soft:#e3f4ec; --warn:#b4471a; --warn-soft:#fbeae2; --abs:#5b4cc4; --abs-soft:#ecebfb; --hol:#4b6178; --hol-soft:#e8edf2;
+  --f-display:"Golos Text","Segoe UI",system-ui,sans-serif; --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e141b; --surface:#16202b; --ink:#e5ebf2; --muted:#97a5b6; --line:#273445;
+  --brand:#6fa4ec; --brand-ink:#0b1420; --accent:#f2a33a; --accent-soft:#2e2414;
+  --ok:#4cc08c; --ok-soft:#13291f; --warn:#f08a5d; --warn-soft:#2e1b13; --abs:#a79bff; --abs-soft:#211d3a; --hol:#a7b6c7; --hol-soft:#1c2633; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e141b; --surface:#16202b; --ink:#e5ebf2; --muted:#97a5b6; --line:#273445;
+  --brand:#6fa4ec; --brand-ink:#0b1420; --accent:#f2a33a; --accent-soft:#2e2414;
+  --ok:#4cc08c; --ok-soft:#13291f; --warn:#f08a5d; --warn-soft:#2e1b13; --abs:#a79bff; --abs-soft:#211d3a; --hol:#a7b6c7; --hol-soft:#1c2633; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1080px;margin:0 auto;padding-block:28px 56px;display:grid;gap:28px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(26px,4.2vw,38px);line-height:1.15;font-weight:700}
+h2{font-size:21px;font-weight:700}
+h3{font-size:16px;font-weight:600}
+p{margin:0}
+.eyebrow{font:600 12px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lead{color:var(--muted);max-width:68ch;font-size:16px}
+header{display:grid;gap:12px}
+.tag{display:inline-flex;align-items:center;gap:8px;background:var(--accent-soft);color:var(--accent);font:600 12px/1 var(--f-body);letter-spacing:.06em;text-transform:uppercase;padding:7px 10px;border-radius:6px;width:max-content}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:13px;color:var(--muted)}
+.chip b{color:var(--ink);font-weight:600}
+section{display:grid;gap:14px}
+.sec-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px}
+.sec-head p{color:var(--muted);font-size:14px}
+.roles{display:grid;grid-template-columns:1fr;gap:12px}
+@media (min-width:560px){.roles{grid-template-columns:repeat(2,minmax(0,1fr))}.role.main{grid-column:1/-1}}
+@media (min-width:1000px){.roles{grid-template-columns:repeat(5,minmax(0,1fr))}.role.main{grid-column:auto}}
+.role{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;grid-template-rows:auto auto 1fr auto;gap:8px;min-width:0}
+.role .who{font:600 12px/1 var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--brand)}
+.role p{color:var(--muted);font-size:14px}
+.role select{width:100%;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.go{display:inline-flex;justify-content:center;align-items:center;gap:6px;background:var(--brand);color:var(--brand-ink);border:0;border-radius:8px;padding:10px 14px;font:600 14px/1 var(--f-body);text-decoration:none;cursor:pointer;min-height:40px}
+.go:hover{filter:brightness(1.08)}
+.go:focus-visible,.btn:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.role.main{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand) inset}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:16px;align-items:start}
+@media (max-width:820px){.grid2{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:grid;gap:12px;min-width:0}
+dl.terms{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;margin:0;font-size:14px}
+dl.terms dt{color:var(--muted)}
+dl.terms dd{margin:0;font-weight:500}
+.num,td.r,th.r{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--f-mono);font-size:13px}
+.note{font-size:13px;color:var(--muted)}
+.tbl-wrap{overflow-x:auto;margin:0 -4px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th,td{padding:9px 6px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font:600 12px/1.2 var(--f-body);color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+td.r,th.r{text-align:right}
+tr.tot td{font-weight:700;border-bottom:0;border-top:2px solid var(--ink)}
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:2px;background:var(--bg)}
+.kpi b{font:700 20px/1.2 var(--f-display);font-variant-numeric:tabular-nums}
+.kpi span{font-size:13px;color:var(--muted)}
+ol.story{list-style:none;margin:0;padding:0;display:grid;gap:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+ol.story li{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:12px;align-items:baseline;padding:10px 16px;border-bottom:1px solid var(--line)}
+ol.story li:last-child{border-bottom:0}
+ol.story .d{font:500 13px/1.4 var(--f-mono);color:var(--muted)}
+ol.story .t{min-width:0}
+ol.story .t b{font-weight:600}
+.k{font:600 11px/1 var(--f-body);letter-spacing:.05em;text-transform:uppercase;padding:5px 8px;border-radius:5px;white-space:nowrap}
+.k.warn{background:var(--warn-soft);color:var(--warn)}.k.ok,.k.pay{background:var(--ok-soft);color:var(--ok)}.k.abs{background:var(--abs-soft);color:var(--abs)}.k.hol{background:var(--hol-soft);color:var(--hol)}.k.inv{background:var(--accent-soft);color:var(--accent)}.k.ot{background:var(--accent-soft);color:var(--accent)}.k.info{background:var(--hol-soft);color:var(--hol)}
+@media (max-width:560px){ol.story li{grid-template-columns:52px minmax(0,1fr)}ol.story .k{grid-column:2;justify-self:start}}
+ol.steps{margin:0;padding:0;list-style:none;counter-reset:s;display:grid;gap:10px}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start}
+ol.steps li::before{content:counter(s);display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font:700 14px/1 var(--f-display)}
+.limits{display:grid;gap:6px;font-size:14px;color:var(--muted);padding-left:18px;margin:0}
+.btn{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:9px 14px;cursor:pointer;min-height:40px}
+.btn.danger{border-color:var(--warn);color:var(--warn)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+footer{color:var(--muted);font-size:13px}
+@media (prefers-reduced-motion:no-preference){.go,.btn{transition:filter .15s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <a class="tag" href="../" style="text-decoration:none">← Презентация</a><span class="tag">Демо-стенд · тестовые данные</span>
+    <h1>Табель ANK: месяц работы бригады из пяти человек</h1>
+    <p class="lead">Это рабочая копия Табеля ANK с вымышленными людьми, объектами и клиентами. За месяц накоплено всё, что бывает на стройке: смены и сверхурочные, больничный, опоздания, расходы с чеками, счета, сметы и partes с подписью клиента. Открывайте любую роль и нажимайте что угодно — данные живут только в этом браузере, настоящая база не затрагивается.</p>
+    <div class="chips" id="chips"></div>
+  </header>
+
+  <section aria-labelledby="h-roles">
+    <div class="sec-head"><h2 id="h-roles">Открыть от имени</h2><p>Все роли видят одну и ту же базу: отметка в приложении рабочего сразу видна в кабинете.</p></div>
+    <div class="roles">
+      <div class="role main">
+        <span class="who">Директор</span><h3>Кабинет руководителя</h3>
+        <p>Команда сейчас, зарплата, объекты и их рентабельность, счета, сметы, KPI. Видит всё.</p>
+        <a class="go" href="app/boss.html?as=director">Открыть кабинет</a>
+      </div>
+      <div class="role">
+        <span class="who">Рабочий</span><h3>Приложение на телефоне</h3>
+        <p>«Приехал / Уехал», план от прораба, фото, расходы с чеком, журнал за месяц.</p>
+        <label class="note" for="w-sel">Кто из бригады</label>
+        <select id="w-sel"></select>
+        <a class="go" id="w-go" href="app/index.html">Открыть приложение</a>
+      </div>
+      <div class="role">
+        <span class="who">Бухгалтер</span><h3>Кабинет · деньги</h3>
+        <p>Зарплата и выплаты, расходы, счета и оплаты, выгрузки Nóminas, Modelo 303 / 111.</p>
+        <a class="go" href="app/boss.html?as=accountant">Открыть как бухгалтер</a>
+      </div>
+      <div class="role">
+        <span class="who">Прораб</span><h3>Кабинет · объекты</h3>
+        <p>План на день и неделю, материалы, инструмент, partes. Зарплаты и счета не видит.</p>
+        <a class="go" href="app/boss.html?as=foreman">Открыть как прораб</a>
+      </div>
+      <div class="role">
+        <span class="who">Клиент</span><h3>Портал объекта</h3>
+        <p>Страница стройки C/ Cartagena 3 для клиентки: фото, partes на подпись, счета.</p>
+        <a class="go" href="app/portal.html?t=demoCartagena3Portal2026">Открыть портал</a>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-month">
+    <div class="sec-head"><h2 id="h-month">Месяц в цифрах</h2><p id="month-sub"></p></div>
+    <div class="grid2">
+      <div class="panel">
+        <span class="eyebrow">Типовой договор у всех пятерых</span>
+        <dl class="terms">
+          <dt>Тип</dt><dd>Indefinido ordinario, полный день</dd>
+          <dt>Категория</dt><dd>Fontanero Oficial 3ª</dd>
+          <dt>Время</dt><dd>40 ч в неделю, пн–пт, 08:00–17:00, обед 1 ч</dd>
+          <dt>Оклад</dt><dd class="num">1 900 € брутто в месяц × 12 (экстры пропорционально)</dd>
+          <dt>Час</dt><dd class="num" id="t-hv"></dd>
+          <dt>Сверхурочные</dt><dd class="num" id="t-ot"></dd>
+          <dt>Отпуск</dt><dd>30 дней в год</dd>
+          <dt>Испытательный</dt><dd>15 дней</dd>
+          <dt>IRPF</dt><dd>11% (условно, для Modelo 111)</dd>
+        </dl>
+        <p class="note">Часовая стоимость = оклад × 12 / (40 ч × 52 недели). Оклад начисляется за месяц целиком, включая праздники и больничный; кабинет добавляет к нему сверхурочные по фактическим часам.</p>
+      </div>
+      <div class="panel">
+        <span class="eyebrow" id="tbl-cap">Зарплата за прошлый месяц</span>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Рабочий</th><th class="r">Смен</th><th class="r">Часов</th><th class="r">Сверх.</th><th class="r">Оклад</th><th class="r">За сверх.</th><th class="r">Начислено</th></tr></thead>
+          <tbody id="pay-rows"></tbody>
+        </table></div>
+        <div class="kpis" id="kpis"></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-story">
+    <div class="sec-head"><h2 id="h-story">Что произошло за месяц</h2><p>Всё это видно в кабинете — в карточках рабочих, «Сообщениях», «Требуют внимания» и бухгалтерии.</p></div>
+    <ol class="story" id="story"></ol>
+  </section>
+
+  <section aria-labelledby="h-try">
+    <div class="grid2">
+      <div class="panel">
+        <h2 id="h-try">Проверить вживую за 2 минуты</h2>
+        <ol class="steps">
+          <li><div>Откройте <b>приложение рабочего</b> и нажмите «Приехал» (или «Уехал», если смена уже идёт).</div></li>
+          <li><div>Вернитесь сюда и откройте <b>кабинет директора</b>: в блоке «Сейчас» статус рабочего уже обновился.</div></li>
+          <li><div>В приложении рабочего добавьте расход с суммой — в кабинете он появится в «Сообщениях», нажмите «Одобрить».</div></li>
+          <li><div>Откройте карточку рабочего → «Зарплата»: одобренный расход добавился к сумме к выплате.</div></li>
+        </ol>
+      </div>
+      <div class="panel">
+        <h2>Что в демо не работает</h2>
+        <ul class="limits">
+          <li>Сообщения в Telegram, WhatsApp, email и push не отправляются — в настоящей версии их рассылает бот.</li>
+          <li>Подложка карты и погода условные, GPS подставлен.</li>
+          <li>Скачивание PDF и Excel в этом просмотре может быть заблокировано — документы открываются на экране.</li>
+          <li>Фото — нарисованные заглушки с подписью «ДЕМО».</li>
+        </ul>
+        <div class="row">
+          <button class="btn danger" type="button" id="reset">Начать демо заново</button>
+          <span class="note" id="reset-msg" role="status"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <details class="panel" id="dbg"><summary class="note">Журнал демо (для поддержки)</summary><pre class="mono" id="dbg-log" style="white-space:pre-wrap;margin:0;font-size:12px"></pre></details>
+  <footer>Ingeniería y Reformas ANK S.L.U. · Табель ANK v5.3 · все люди, документы (NIE, Seguridad Social, адреса), клиенты, реквизиты и суммы вымышлены; договор типовой.</footer>
+</div>
+
+<script>window.__ANK_DEMO_LANDING=true;</script>
+<script src="app/demo.js" charset="utf-8"></script>
+<script>
+(function(){
+  var D=window.ANKDemo;if(!D)return;
+  var MON=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"],MONN=["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"];
+  function eur(n,d){return (Math.round(n*100)/100).toLocaleString("ru",{minimumFractionDigits:d==null?2:d,maximumFractionDigits:d==null?2:d})+" €"}
+  function h(n){return (Math.round(n*10)/10).toLocaleString("ru")}
+  function dm(k){return +k.slice(8,10)+" "+MON[+k.slice(5,7)-1]}
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]})}
+  function render(){
+    var s=D.summary();var mName=MONN[+s.from.slice(5,7)-1];
+    document.getElementById("chips").innerHTML=['<span class="chip">Период: <b>'+dm(s.from)+' — '+dm(s.today)+'</b></span>','<span class="chip"><b>5</b> рабочих</span>','<span class="chip"><b>4</b> объекта</span>','<span class="chip"><b>'+s.invoices.length+'</b> счетов</span>','<span class="chip"><b>'+s.photos+'</b> фото с объектов</span>'].join("");
+    document.getElementById("t-hv").textContent=eur(s.hv)+" за час";
+    document.getElementById("t-ot").textContent="× "+String(s.otk).replace(".",",")+" = "+eur((s.hvx||s.hv)*s.otk)+" за час; в выходные и праздники — все часы";
+    document.getElementById("tbl-cap").textContent="Зарплата за "+mName+" (месяц закрыт)";
+    document.getElementById("month-sub").textContent="Прошлый месяц полностью закрыт, текущий идёт до сегодняшнего дня.";
+    var t={d:0,h:0,ot:0,mon:0,otp:0,e:0};
+    document.getElementById("pay-rows").innerHTML=s.workers.map(function(w){t.d+=w.days;t.h+=w.h;t.ot+=w.ot;t.mon+=s.mon;t.otp+=w.otPay;t.e+=w.earn;
+      return '<tr><td>'+esc(w.name)+'</td><td class="r">'+w.days+'</td><td class="r">'+h(w.h)+'</td><td class="r">'+(w.ot?h(w.ot):"—")+'</td><td class="r">'+eur(s.mon)+'</td><td class="r">'+(w.otPay?eur(w.otPay):"—")+'</td><td class="r"><b>'+eur(w.earn)+'</b></td></tr>'}).join("")+
+      '<tr class="tot"><td>Итого</td><td class="r">'+t.d+'</td><td class="r">'+h(t.h)+'</td><td class="r">'+h(t.ot)+'</td><td class="r">'+eur(t.mon)+'</td><td class="r">'+eur(t.otp)+'</td><td class="r">'+eur(t.e)+'</td></tr>';
+    var mInv=s.invoices.filter(function(x){return x.date>=s.from&&x.date<=s.to});
+    document.getElementById("kpis").innerHTML=['<div class="kpi"><b>'+eur(t.e,0)+'</b><span>фонд оплаты брутто</span></div>','<div class="kpi"><b>'+eur(s.invoiced,0)+'</b><span>выставлено клиентам без IVA · '+mInv.length+' сч.</span></div>','<div class="kpi"><b>'+h(t.ot)+' ч</b><span>сверхурочных у бригады</span></div>','<div class="kpi"><b>'+s.signed+' из '+s.partes+'</b><span>partes подписаны клиенткой</span></div>'].join("");
+    var KN={warn:"замечание",abs:"отсутствие",hol:"праздник",inv:"счёт / смета",ot:"сверхурочные",pay:"выплата",info:"объект"};
+    document.getElementById("story").innerHTML=s.story.map(function(x){return '<li><span class="d">'+x.d.slice(8,10)+"."+x.d.slice(5,7)+'</span><span class="t">'+(x.who?'<b>'+esc(x.who)+'</b> — ':'')+esc(x.t)+'</span><span class="k '+x.k+'">'+KN[x.k]+'</span></li>'}).join("");
+  }
+  var sel=document.getElementById("w-sel"),cur="";try{cur=localStorage.getItem("ank-demo-worker")||""}catch(e){}
+  sel.innerHTML=D.W.map(function(w){return '<option value="'+w.id+'"'+(w.id===cur?' selected':'')+'>'+esc(w.name)+(w.es?' · ES':'')+'</option>'}).join("");
+  document.getElementById("w-go").addEventListener("click",function(){try{localStorage.setItem("ank-demo-worker",sel.value)}catch(e){}});
+  var rb=document.getElementById("reset"),armed=false;rb.addEventListener("click",function(){
+    if(!armed){armed=true;rb.textContent="Да, стереть мои изменения";document.getElementById("reset-msg").textContent="Все ваши нажатия в демо пропадут, данные месяца создадутся заново.";return}
+    D.reset();armed=false;rb.textContent="Начать демо заново";document.getElementById("reset-msg").textContent="Готово: демо создано заново.";render()});
+  render();
+  try{document.getElementById("dbg-log").textContent=JSON.parse(localStorage.getItem("ank-demo-log")||"[]").join("\n")}catch(e){}
+  var dbg=document.getElementById("dbg");try{if(localStorage.getItem("ank-demo-dbg")==="1"||location.hash==="#debug"){dbg.open=true;document.querySelector(".wrap").prepend(dbg)}}catch(e){}
+})();
+</script>
+</body></html>
