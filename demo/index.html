@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Табель ANK — для руководства</title>
+<meta name="description" content="Табель ANK: учёт смен, зарплаты, объектов и счетов. Презентация на тестовом месяце.">
+<meta name="theme-color" content="#0b1322">
+<link rel="icon" href="stand/app/boss-icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400..800&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+html,body{margin:0;height:100%;background:#0b1322;color:#e6ecf3;font-family:'IBM Plex Sans',Arial,sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent}
+#stage{position:fixed;inset:0;overflow:hidden;touch-action:pan-y}
+#deck{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0}
+.slide{position:absolute;inset:0;width:1920px;height:1080px;box-sizing:border-box;overflow:hidden;opacity:0;visibility:hidden;transition:opacity .35s ease,visibility 0s linear .35s}
+.slide.on{opacity:1;visibility:visible;transition:opacity .35s ease}
+.slide *{box-sizing:border-box;margin:0}
+.slide h1{line-height:1.1}.slide h2{line-height:1.15;text-wrap:balance}.slide h3{line-height:1.2}.slide p{line-height:1.4}
+.slide ul,.slide ol{padding-left:1.2em}.slide li+li{margin-top:.2em}
+.slide img{display:block;max-width:none}
+.slide table{border-collapse:collapse;width:100%}
+.slide th,.slide td{padding:.42em .6em;border-bottom:1px solid rgba(19,32,58,.14);vertical-align:top}
+.slide th{font-weight:600;color:#4A5568;font-size:.9em}
+.slide a:focus-visible{outline:4px solid #F29A3A;outline-offset:4px}
+#bar{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));display:flex;gap:6px;align-items:center;background:rgba(11,19,34,.82);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:6px;transition:opacity .3s;z-index:5}
+#bar.idle{opacity:0;pointer-events:none}
+#bar button,#bar a{font:600 14px/1 'IBM Plex Sans',Arial,sans-serif;color:#e6ecf3;background:transparent;border:0;border-radius:999px;padding:10px 14px;cursor:pointer;text-decoration:none;white-space:nowrap}
+#bar button:hover,#bar a:hover{background:rgba(255,255,255,.1)}
+#bar button:focus-visible,#bar a:focus-visible{outline:2px solid #F29A3A}
+#bar .demo{background:#F29A3A;color:#13203A}
+#bar .demo:hover{background:#f5ab55}
+#count{font:500 14px/1 'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;color:#9FB0C8;padding:0 8px;min-width:64px;text-align:center}
+#prog{position:fixed;left:0;top:0;height:3px;background:#F29A3A;transition:width .3s;z-index:6}
+#notes{position:fixed;left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:76px;max-width:900px;margin:0 auto;background:rgba(11,19,34,.94);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:16px 20px;font-size:16px;line-height:1.5;color:#d5deea;z-index:5}
+#notes b{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#F29A3A;margin-bottom:6px}
+@media (max-width:560px){#bar{right:50%;transform:translateX(50%)}#bar button.opt{display:none}#bar button,#bar a{padding:10px 11px}}
+@media (prefers-reduced-motion:reduce){.slide,.slide.on{transition:none}}
+</style>
+</head>
+<body>
+<div id="prog"></div>
+<div id="stage"><div id="deck">
+<section id="s-cover" class="slide" aria-roledescription="слайд" aria-label="1 из 16" style="background:#13203A;color:#F3F5F8;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;justify-content:center;gap:40px">
+<p style="font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#F29A3A;font-weight:600">Ingeniería y Reformas ANK · ноябрь 2026</p>
+<h1 style="font-family:'Golos Text', Arial, sans-serif;font-size:112px;font-weight:700;line-height:1.05;width:1060px">Табель ANK</h1>
+<p style="font-size:40px;line-height:1.35;color:#C9D3E3;width:1000px">Учёт смен, зарплаты, объектов и счетов — с телефона рабочего до ведомости и портала клиента</p>
+<p style="font-size:28px;line-height:1.4;color:#9FB0C8;width:980px">Показ на тестовом месяце: пять рабочих на типовом договоре, четыре объекта, октябрь 2026</p>
+<img src="img/w-today.webp" alt="Приложение рабочего: экран «Сегодня» с закрытой сменой на объекте Enforza" style="position:absolute;left:1320px;top:124px;width:383px;height:828px;object-fit:cover;border-radius:36px;border:6px solid #2A3A57;box-shadow:0 24px 80px rgba(0,0,0,0.45)">
+
+</section>
+<section id="s-problem" class="slide" aria-roledescription="слайд" aria-label="2 из 16" style="background:#F3F5F8;color:#13203A;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:56px">
+<h2 style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1">Что без системы отнимает время каждый месяц</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:32px">
+<div style="display:flex;flex-direction:column;gap:16px;background:#FBFCFD;border:1px solid #DCE2EA;border-radius:20px;padding:40px">
+<h3 style="font-family:'Golos Text', Arial, sans-serif;font-size:40px;font-weight:600">Часы и сверхурочные</h3>
+<p style="font-size:30px;line-height:1.4;color:#4A5568">Собираются по сообщениям и по памяти. В конце месяца спорим, кто сколько отработал и сколько переработал.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px;background:#FBFCFD;border:1px solid #DCE2EA;border-radius:20px;padding:40px">
+<h3 style="font-family:'Golos Text', Arial, sans-serif;font-size:40px;font-weight:600">Чеки и расходы</h3>
+<p style="font-size:30px;line-height:1.4;color:#4A5568">Бензин, диски, клей: чек теряется, компенсацию считают вручную, бухгалтер узнаёт последним.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px;background:#FBFCFD;border:1px solid #DCE2EA;border-radius:20px;padding:40px">
+<h3 style="font-family:'Golos Text', Arial, sans-serif;font-size:40px;font-weight:600">Счета клиентам</h3>
+<p style="font-size:30px;line-height:1.4;color:#4A5568">Часы по объекту собираем заново. О неоплаченном счёте вспоминаем, когда он уже просрочен.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px;background:#FBFCFD;border:1px solid #DCE2EA;border-radius:20px;padding:40px">
+<h3 style="font-family:'Golos Text', Arial, sans-serif;font-size:40px;font-weight:600">Клиент и документы</h3>
+<p style="font-size:30px;line-height:1.4;color:#4A5568">Клиент не видит, что сделано за неделю. Partes подписываются на бумаге, медосмотры и PRL истекают незаметно.</p>
+</div>
+</div>
+
+</section>
+<section id="s-how" class="slide" aria-roledescription="слайд" aria-label="3 из 16" style="background:#F3F5F8;color:#13203A;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:56px">
+<h2 style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1">Три части, одна база данных</h2>
+<div style="display:flex;flex-direction:row;align-items:center;gap:24px">
+<div style="flex:1;display:flex;flex-direction:column;gap:20px;background:#FBFCFD;border:1px solid #DCE2EA;border-radius:20px;padding:40px">
+<p style="font-size:24px;letter-spacing:2px;text-transform:uppercase;color:#2E66D9;font-weight:600">Телефон рабочего</p>
+<h3 style="font-family:'Golos Text', Arial, sans-serif;font-size:40px;font-weight:600">Приложение</h3>
+<ul style="font-size:28px;line-height:1.4;color:#4A5568">
+<li>«Приехал / Уехал» с GPS</li>
+<li>План от прораба</li>
+<li>Фото и расходы с чеком</li>
+<li>Русский и испанский</li>
+</ul>
+</div>
+<svg aria-hidden="true" width="64" height="32" viewBox="0 0 64 32" style="flex:none"><path d="M0 10h38V0l26 16-26 16V22H0z" fill="#9FB0C8"/></svg>
+<div style="flex:1;display:flex;flex-direction:column;gap:20px;background:#13203A;color:#F3F5F8;border-radius:20px;padding:40px">
+<p style="font-size:24px;letter-spacing:2px;text-transform:uppercase;color:#F29A3A;font-weight:600">Офис и телефон</p>
+<h3 style="font-family:'Golos Text', Arial, sans-serif;font-size:40px;font-weight:600">Кабинет</h3>
+<ul style="font-size:28px;line-height:1.4;color:#C9D3E3">
+<li>Кто где сейчас</li>
+<li>Зарплата и выплаты</li>
+<li>Объекты, счета, сметы</li>
+<li>Роли: директор, бухгалтер, прораб</li>
+</ul>
+</div>
+<svg aria-hidden="true" width="64" height="32" viewBox="0 0 64 32" style="flex:none"><path d="M0 10h38V0l26 16-26 16V22H0z" fill="#9FB0C8"/></svg>
+<div style="flex:1;display:flex;flex-direction:column;gap:20px;background:#FBFCFD;border:1px solid #DCE2EA;border-radius:20px;padding:40px">
+<p style="font-size:24px;letter-spacing:2px;text-transform:uppercase;color:#2E66D9;font-weight:600">Ссылка для клиента</p>
+<h3 style="font-family:'Golos Text', Arial, sans-serif;font-size:40px;font-weight:600">Портал объекта</h3>
+<ul style="font-size:28px;line-height:1.4;color:#4A5568">
+<li>Фото стройки</li>
+<li>Partes на подпись</li>
+<li>Счета и IBAN</li>
+<li>На испанском</li>
+</ul>
+</div>
+</div>
+<p style="font-size:30px;line-height:1.4;color:#4A5568;background:#E6ECF4;border-radius:16px;padding:28px 36px">Бот проверяет базу каждые 15 минут: кто не отметился, опоздания, просроченные счета и документы — и может присылать сводки в Telegram, WhatsApp или на почту.</p>
+
+</section>
+<section id="s-worker" class="slide" aria-roledescription="слайд" aria-label="4 из 16" style="background:#F3F5F8;color:#13203A;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:row;gap:64px;align-items:center">
+<div style="flex:1;display:flex;flex-direction:column;gap:36px">
+<h2 style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1">У рабочего: смена в два нажатия</h2>
+<div style="display:flex;flex-direction:column;gap:24px">
+<p style="font-size:30px;line-height:1.4;color:#4A5568"><b style="color:#13203A">Утром</b> — «Приехал»: время и место GPS записываются сами. На объекте с геозоной отметка ставится автоматически.</p>
+<p style="font-size:30px;line-height:1.4;color:#4A5568"><b style="color:#13203A">План дня</b> от прораба: объект, задачи, заметка. Сделанное отмечает галочкой.</p>
+<p style="font-size:30px;line-height:1.4;color:#4A5568"><b style="color:#13203A">Одной кнопкой</b>: «Опаздываю», «Нужен материал», расход с фото чека.</p>
+<p style="font-size:30px;line-height:1.4;color:#4A5568"><b style="color:#13203A">Вечером</b> — «Уехал», фото работ и пара слов о сделанном. Журнал и PDF за месяц всегда под рукой.</p>
+</div>
+</div>
+<img src="img/w-plan.webp" alt="Приложение рабочего: план от прораба с задачами на сегодня и завтра" style="width:360px;height:780px;object-fit:cover;border-radius:32px;border:5px solid #DCE2EA">
+<img src="img/w-quick.webp" alt="Приложение рабочего: кнопки «Опаздываю», «Нужен материал», «Закончил раньше» и отправленные сообщения" style="width:360px;height:780px;object-fit:cover;border-radius:32px;border:5px solid #DCE2EA">
+
+</section>
+<section id="s-cabinet" class="slide" aria-roledescription="слайд" aria-label="5 из 16" style="background:#F3F5F8;color:#13203A;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:40px">
+<h2 style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1">Руководитель видит всю бригаду</h2>
+<div style="display:flex;flex-direction:row;gap:48px;align-items:start">
+<img src="img/d-home.webp" alt="Кабинет руководителя, обзор за ноябрь: часы команды, переработки, фонд зарплаты, новое от рабочих, сроки и замечания" style="width:1120px;height:700px;object-fit:contain;background:#E6ECF4;border-radius:20px;border:1px solid #DCE2EA">
+<div style="flex:1;display:flex;flex-direction:column;gap:32px">
+<div style="display:flex;flex-direction:column;gap:8px">
+<h3 style="font-family:'Golos Text', Arial, sans-serif;font-size:32px;font-weight:600">Команда</h3>
+<p style="font-size:28px;line-height:1.4;color:#4A5568">Часы, смены и переработки за неделю или месяц, фонд зарплаты и сколько осталось выплатить.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<h3 style="font-family:'Golos Text', Arial, sans-serif;font-size:32px;font-weight:600">Новое от рабочих</h3>
+<p style="font-size:28px;line-height:1.4;color:#4A5568">Заявки на материал и расходы с чеком ждут одобрения.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<h3 style="font-family:'Golos Text', Arial, sans-serif;font-size:32px;font-weight:600">Требуют внимания</h3>
+<p style="font-size:28px;line-height:1.4;color:#4A5568">Опоздания, работа в выходной, просроченные счета и медосмотры — без ручной проверки.</p>
+</div>
+</div>
+</div>
+
+</section>
+<section id="s-terms" class="slide" aria-roledescription="слайд" aria-label="6 из 16" style="background:#F3F5F8;color:#13203A;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:48px">
+<h2 style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1">Тестовый месяц: пять рабочих на типовом договоре</h2>
+<div style="display:flex;flex-direction:row;gap:40px;align-items:start">
+<div style="flex:1;display:flex;flex-direction:column;gap:20px;background:#FBFCFD;border:1px solid #DCE2EA;border-radius:20px;padding:40px">
+<p style="font-size:24px;letter-spacing:2px;text-transform:uppercase;color:#2E66D9;font-weight:600">Договор у всех пятерых</p>
+<div style="display:grid;grid-template-columns:240px 1fr;gap:14px 24px">
+<p style="font-size:28px;color:#6A7689">Тип</p><p style="font-size:28px">Indefinido ordinario</p>
+<p style="font-size:28px;color:#6A7689">Категория</p><p style="font-size:28px">Fontanero Oficial 3ª</p>
+<p style="font-size:28px;color:#6A7689">Время</p><p style="font-size:28px">40 ч в неделю, пн–пт</p>
+<p style="font-size:28px;color:#6A7689">Оклад</p><p style="font-size:28px"><b>1 900 €</b> брутто × 12</p>
+<p style="font-size:28px;color:#6A7689">Час</p><p style="font-size:28px">10,96 € (оклад × 12 / 2080 ч)</p>
+<p style="font-size:28px;color:#6A7689">Сверхурочные</p><p style="font-size:28px">× 1,25 = 13,70 € за час</p>
+<p style="font-size:28px;color:#6A7689">Отпуск</p><p style="font-size:28px">30 дней, испытательный 15 дней</p>
+</div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:20px;background:#FBFCFD;border:1px solid #DCE2EA;border-radius:20px;padding:40px">
+<p style="font-size:24px;letter-spacing:2px;text-transform:uppercase;color:#2E66D9;font-weight:600">Объекты месяца</p>
+<div style="display:flex;flex-direction:column;gap:18px">
+<p style="font-size:28px;line-height:1.35"><b>C/ Cartagena 3</b> — реформа квартиры, частный клиент</p>
+<p style="font-size:28px;line-height:1.35"><b>Bétera</b> — климатизация шале, сдан 24 октября</p>
+<p style="font-size:28px;line-height:1.35"><b>Enforza, Paterna</b> — кровля и водостоки склада</p>
+<p style="font-size:28px;line-height:1.35"><b>Av. del Puerto 112</b> — помещение под кафе, со 2 ноября</p>
+</div>
+<p style="font-size:24px;line-height:1.4;color:#6A7689">Люди, клиенты, реквизиты и суммы вымышлены; договор типовой.</p>
+</div>
+</div>
+
+</section>
+<section id="s-paynums" class="slide" aria-roledescription="слайд" aria-label="7 из 16" style="background:#13203A;color:#F3F5F8;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:48px">
+<h2 style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1">Зарплата за октябрь посчитана без Excel</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:32px">
+<div style="display:flex;flex-direction:column;gap:12px;background:#1C2C4B;border-radius:20px;padding:40px">
+<p style="font-family:'Golos Text', Arial, sans-serif;font-size:96px;font-weight:700;line-height:1.05;color:#F29A3A">10 005,60 €</p>
+<p style="font-size:30px;line-height:1.4;color:#C9D3E3">начислено брутто: 5 окладов по 1 900 € и сверхурочные</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#1C2C4B;border-radius:20px;padding:40px">
+<p style="font-family:'Golos Text', Arial, sans-serif;font-size:96px;font-weight:700;line-height:1.05">36,9 ч</p>
+<p style="font-size:30px;line-height:1.4;color:#C9D3E3">сверхурочных у бригады — 505,60 € по 13,70 € за час</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#1C2C4B;border-radius:20px;padding:40px">
+<p style="font-family:'Golos Text', Arial, sans-serif;font-size:96px;font-weight:700;line-height:1.05">230,55 €</p>
+<p style="font-size:30px;line-height:1.4;color:#C9D3E3">расходы рабочих по чекам, одобрены и добавлены к выплате</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#1C2C4B;border-radius:20px;padding:40px">
+<p style="font-family:'Golos Text', Arial, sans-serif;font-size:96px;font-weight:700;line-height:1.05;color:#7FD3A8">0 €</p>
+<p style="font-size:30px;line-height:1.4;color:#C9D3E3">остаток к выплате: авансы и зарплата записаны, месяц закрыт</p>
+</div>
+</div>
+
+</section>
+<section id="s-paytable" class="slide" aria-roledescription="слайд" aria-label="8 из 16" style="background:#F3F5F8;color:#13203A;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:48px">
+<h2 style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1">Октябрь по каждому рабочему</h2>
+<table style="font-size:28px;color:#13203A;font-variant-numeric:tabular-nums">
+<tr><th style="width:22%;text-align:left">Рабочий</th><th style="width:7%;text-align:right">Смен</th><th style="width:9%;text-align:right">Часов</th><th style="width:9%;text-align:right">Сверх., ч</th><th style="width:12%;text-align:right">За сверх.</th><th style="width:12%;text-align:right">Расходы</th><th style="width:14.5%;text-align:right">Начислено</th><th style="width:14.5%;text-align:right">Выплачено</th></tr>
+<tr><td>Олег Коваленко</td><td style="text-align:right">20</td><td style="text-align:right">160,0</td><td style="text-align:right">1,0</td><td style="text-align:right">13,47 €</td><td style="text-align:right">84,70 €</td><td style="text-align:right">1 913,47 €</td><td style="text-align:right">1 998,17 €</td></tr>
+<tr><td>Андрей Мельник</td><td style="text-align:right">21</td><td style="text-align:right">174,5</td><td style="text-align:right">15,2</td><td style="text-align:right">207,58 €</td><td style="text-align:right">75,00 €</td><td style="text-align:right">2 107,58 €</td><td style="text-align:right">2 182,58 €</td></tr>
+<tr><td>José Martínez</td><td style="text-align:right">20</td><td style="text-align:right">158,6</td><td style="text-align:right">0,9</td><td style="text-align:right">12,79 €</td><td style="text-align:right">9,80 €</td><td style="text-align:right">1 912,79 €</td><td style="text-align:right">1 922,59 €</td></tr>
+<tr><td>Сергей Бондаренко</td><td style="text-align:right">17</td><td style="text-align:right">143,4</td><td style="text-align:right">8,0</td><td style="text-align:right">109,16 €</td><td style="text-align:right">42,15 €</td><td style="text-align:right">2 009,16 €</td><td style="text-align:right">2 051,31 €</td></tr>
+<tr><td>Youssef El Amrani</td><td style="text-align:right">20</td><td style="text-align:right">163,1</td><td style="text-align:right">11,9</td><td style="text-align:right">162,60 €</td><td style="text-align:right">18,90 €</td><td style="text-align:right">2 062,60 €</td><td style="text-align:right">2 081,50 €</td></tr>
+<tr style="background:#E6ECF4"><td><b>Итого</b></td><td style="text-align:right"><b>98</b></td><td style="text-align:right"><b>799,5</b></td><td style="text-align:right"><b>36,9</b></td><td style="text-align:right"><b>505,60 €</b></td><td style="text-align:right"><b>230,55 €</b></td><td style="text-align:right"><b>10 005,60 €</b></td><td style="text-align:right"><b>10 236,15 €</b></td></tr>
+</table>
+<p style="font-size:28px;line-height:1.4;color:#4A5568">Начислено = оклад 1 900 € + сверхурочные. Выплачено = начислено + расходы по чекам. У Сергея 17 смен: три дня больничного, оклад начислен полностью.</p>
+<p style="position:absolute;left:128px;bottom:64px;font-size:24px;color:#6A7689;width:1664px">Октябрь 2026: 20 рабочих дней, праздники 9 и 12 октября. Суммы брутто, без взносов фирмы в Seguridad Social.</p>
+
+</section>
+<section id="s-payshot" class="slide" aria-roledescription="слайд" aria-label="9 из 16" style="background:#F3F5F8;color:#13203A;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:40px">
+<h2 style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1">Так это выглядит в кабинете</h2>
+<div style="display:flex;flex-direction:row;gap:48px;align-items:start">
+<img src="img/d-payroll.webp" alt="Кабинет, раздел «Зарплата» за октябрь 2026: часы, сверхурочные, оклад, начислено, расходы, выплачено и остаток 0 € по пяти рабочим" style="width:1120px;height:700px;object-fit:contain;background:#E6ECF4;border-radius:20px;border:1px solid #DCE2EA">
+<img src="img/c-pay-andrii.webp" alt="Карточка Андрея Мельника, зарплата за октябрь: оклад 1 900 €, сверхурочные 15:09 по 10,96 € × 1,25, расходы, аванс и выплата" style="width:471px;height:700px;object-fit:contain;background:#E6ECF4;border-radius:20px;border:1px solid #DCE2EA">
+</div>
+
+</section>
+<section id="s-caught" class="slide" aria-roledescription="слайд" aria-label="10 из 16" style="background:#F3F5F8;color:#13203A;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:40px">
+<h2 style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1">Что кабинет заметил сам</h2>
+<div style="display:flex;flex-direction:row;gap:56px;align-items:start">
+<div style="flex:1;display:grid;grid-template-columns:210px 1fr;gap:18px 24px">
+<p style="font-size:28px;font-weight:600;color:#B4530A">7, 20, 30.10</p><p style="font-size:28px;line-height:1.35">Youssef опоздал трижды — директор оставил заметку в карточке</p>
+<p style="font-size:28px;font-weight:600;color:#B4530A">15.10</p><p style="font-size:28px;line-height:1.35">Андрей опоздал на 30 минут, но предупредил из приложения</p>
+<p style="font-size:28px;font-weight:600;color:#2E66D9">14–16.10</p><p style="font-size:28px;line-height:1.35">Сергей на больничном: это не неявка, оклад полный</p>
+<p style="font-size:28px;font-weight:600;color:#B4530A">13 и 19.10</p><p style="font-size:28px;line-height:1.35">Смена без фото с объекта и смена без описания работ</p>
+<p style="font-size:28px;font-weight:600;color:#B4530A">27.10</p><p style="font-size:28px;line-height:1.35">Youssef не нажал «Уехал» — часы не посчитаны, пока не исправит</p>
+<p style="font-size:28px;font-weight:600;color:#B4530A">4.11</p><p style="font-size:28px;line-height:1.35">Youssef не вышел и не предупредил — неявка</p>
+<p style="font-size:28px;font-weight:600;color:#B4530A">5.11</p><p style="font-size:28px;line-height:1.35">У Сергея просрочен медосмотр, у Youssef PRL истекает 22.11</p>
+</div>
+<img src="img/c-att-oct.webp" alt="Карточка «Требуют внимания» за октябрь: опоздание Youssef 30.10 и переработки на Enforza" style="width:620px;height:650px;object-fit:contain;background:#E6ECF4;border-radius:20px;border:1px solid #DCE2EA">
+</div>
+
+</section>
+<section id="s-money" class="slide" aria-roledescription="слайд" aria-label="11 из 16" style="background:#F3F5F8;color:#13203A;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:40px">
+<h2 style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1">Деньги от клиентов под контролем</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px">
+<div style="display:flex;flex-direction:column;gap:8px;background:#FBFCFD;border:1px solid #DCE2EA;border-radius:20px;padding:32px 36px">
+<p style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1;color:#2E66D9">27 572 €</p>
+<p style="font-size:28px;line-height:1.35;color:#4A5568">выставлено за октябрь без IVA, 3 счёта по часам объектов</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;background:#FBFCFD;border:1px solid #DCE2EA;border-radius:20px;padding:32px 36px">
+<p style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1;color:#B4530A">4 798 €</p>
+<p style="font-size:28px;line-height:1.35;color:#4A5568">просрочено с 7 октября — бот напоминает клиентке</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;background:#FBFCFD;border:1px solid #DCE2EA;border-radius:20px;padding:32px 36px">
+<p style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1;color:#13203A">19 444 €</p>
+<p style="font-size:28px;line-height:1.35;color:#4A5568">смета Puerto принята, аванс 30% уже выставлен</p>
+</div>
+</div>
+<img src="img/c-unpaid.webp" alt="Бухгалтерия, «Ожидают оплаты»: три счёта на 23 377,38 €, один просрочен, кнопки «Оплачен», «Напомнить», «Открыть»" style="width:1338px;height:430px;object-fit:contain;background:#E6ECF4;border-radius:20px;border:1px solid #DCE2EA">
+
+</section>
+<section id="s-profit" class="slide" aria-roledescription="слайд" aria-label="12 из 16" style="background:#F3F5F8;color:#13203A;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:40px">
+<h2 style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1">Сколько приносит каждый объект</h2>
+<img src="img/c-rent.webp" alt="KPI, рентабельность объектов: часы, затраты, счета без IVA, прибыль и маржа по Cartagena, Bétera, Enforza и Puerto" style="width:1664px;height:517px;object-fit:contain;background:#FBFCFD;border-radius:20px;border:1px solid #DCE2EA">
+<p style="font-size:30px;line-height:1.4;color:#4A5568;width:1500px">Затраты = часы бригады по стоимости часа из оклада + закупленные материалы + расходы рабочих. Сравниваем со счетами без IVA. Видно сразу: Bétera и Enforza дают около 40%, Cartagena и Puerto выше, потому что по ним уже выставлены сентябрьский счёт и аванс.</p>
+
+</section>
+<section id="s-client" class="slide" aria-roledescription="слайд" aria-label="13 из 16" style="background:#F3F5F8;color:#13203A;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:row;gap:64px;align-items:center">
+<div style="flex:1;display:flex;flex-direction:column;gap:36px">
+<h2 style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1">Клиент видит свою стройку</h2>
+<div style="display:flex;flex-direction:column;gap:24px">
+<p style="font-size:30px;line-height:1.4;color:#4A5568">Клиентка получает одну ссылку в WhatsApp — без регистрации и пароля, на испанском.</p>
+<p style="font-size:30px;line-height:1.4;color:#4A5568">Внутри фото с объекта, сметы, счета с IBAN и partes de trabajo.</p>
+<p style="font-size:30px;line-height:1.4;color:#4A5568">Parte она подписывает пальцем на телефоне, подпись с датой приходит в кабинет. В демо подписаны 4 из 5 partes по Cartagena.</p>
+</div>
+</div>
+<img src="img/p-main.webp" alt="Портал объекта C/ Cartagena 3: 16 фото, 8 документов, parte на подпись и подтверждённые partes" style="width:360px;height:780px;object-fit:cover;border-radius:32px;border:5px solid #DCE2EA">
+<img src="img/p-sign.webp" alt="Портал: окно подписи parte de trabajo с полем имени и полем для подписи пальцем" style="width:360px;height:780px;object-fit:cover;border-radius:32px;border:5px solid #DCE2EA">
+
+</section>
+<section id="s-roles" class="slide" aria-roledescription="слайд" aria-label="14 из 16" style="background:#F3F5F8;color:#13203A;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:48px">
+<h2 style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1">Каждый видит только своё</h2>
+<table style="font-size:28px;color:#13203A">
+<tr><th style="width:20%;text-align:left">Кто</th><th style="width:48%;text-align:left">Что видит и делает</th><th style="width:32%;text-align:left">Чего не видит</th></tr>
+<tr><td><b>Директор</b></td><td>Всё: зарплата, счета, сметы, KPI, сотрудники и права</td><td>—</td></tr>
+<tr><td><b>Бухгалтер</b></td><td>Зарплата и выплаты, расходы, счета и оплаты, Nóminas, Modelo 303 и 111, банк</td><td>План работ, инструмент</td></tr>
+<tr><td><b>Прораб</b></td><td>План на день и неделю, материалы, инструмент, partes, рассылка бригаде</td><td>Зарплаты, счета, сметы</td></tr>
+<tr><td><b>Рабочий</b></td><td>Свои смены, план от прораба, сообщения, свой инструмент</td><td>Других рабочих и деньги фирмы</td></tr>
+<tr><td><b>Клиент</b></td><td>Свой объект: фото, partes на подпись, счета</td><td>Всё остальное</td></tr>
+</table>
+<p style="font-size:28px;line-height:1.4;color:#4A5568">Вход в кабинет — по email и паролю, доступ выдаёт директор. Доступ к данным ограничен правилами базы, а не только экраном.</p>
+
+</section>
+<section id="s-cost" class="slide" aria-roledescription="слайд" aria-label="15 из 16" style="background:#F3F5F8;color:#13203A;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:48px">
+<h2 style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1">Стоимость и запуск</h2>
+<div style="display:flex;flex-direction:row;gap:40px;align-items:start">
+<div style="flex:1;display:flex;flex-direction:column;gap:24px;background:#FBFCFD;border:1px solid #DCE2EA;border-radius:20px;padding:40px">
+<p style="font-family:'Golos Text', Arial, sans-serif;font-size:72px;font-weight:700;line-height:1.05;color:#2E66D9">0 € в месяц</p>
+<p style="font-size:28px;line-height:1.4;color:#4A5568">на нашем объёме, без подписок и лицензий:</p>
+<ul style="font-size:28px;line-height:1.45;color:#13203A">
+<li>сайт приложения — GitHub Pages, бесплатно</li>
+<li>база и вход — Firebase, бесплатный тариф</li>
+<li>бот — GitHub Actions, бесплатно</li>
+<li>Telegram и email — бесплатно; WhatsApp — по тарифу Meta</li>
+</ul>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:24px;background:#FBFCFD;border:1px solid #DCE2EA;border-radius:20px;padding:40px">
+<h3 style="font-family:'Golos Text', Arial, sans-serif;font-size:40px;font-weight:600">Что нужно для запуска</h3>
+<ol style="font-size:28px;line-height:1.45;color:#13203A">
+<li>Директор входит в кабинет, добавляет бухгалтера и прораба</li>
+<li>Каждый рабочий открывает ссылку и ставит иконку — 5 минут</li>
+<li>В кабинете: оклады по договору, объекты, геозоны</li>
+<li>Подключаем уведомления: Telegram или WhatsApp</li>
+</ol>
+</div>
+</div>
+
+</section>
+<section id="s-pilot" class="slide" aria-roledescription="слайд" aria-label="16 из 16" style="background:#13203A;color:#F3F5F8;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:56px">
+<h2 style="font-family:'Golos Text', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1">Предложение: месяц пилота на одной бригаде</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px">
+<div style="display:flex;flex-direction:column;gap:16px;background:#1C2C4B;border-radius:20px;padding:40px">
+<p style="font-family:'Golos Text', Arial, sans-serif;font-size:72px;font-weight:700;line-height:1;color:#F29A3A">1</p>
+<h3 style="font-family:'Golos Text', Arial, sans-serif;font-size:40px;font-weight:600">Неделя 1</h3>
+<p style="font-size:28px;line-height:1.4;color:#C9D3E3">Запуск: кабинет, оклады по договорам, объекты. Бригада ставит приложение.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px;background:#1C2C4B;border-radius:20px;padding:40px">
+<p style="font-family:'Golos Text', Arial, sans-serif;font-size:72px;font-weight:700;line-height:1;color:#F29A3A">2</p>
+<h3 style="font-family:'Golos Text', Arial, sans-serif;font-size:40px;font-weight:600">Недели 2–4</h3>
+<p style="font-size:28px;line-height:1.4;color:#C9D3E3">Работаем параллельно с нынешним учётом. Прораб ведёт план, рабочие отмечаются.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px;background:#1C2C4B;border-radius:20px;padding:40px">
+<p style="font-family:'Golos Text', Arial, sans-serif;font-size:72px;font-weight:700;line-height:1;color:#F29A3A">3</p>
+<h3 style="font-family:'Golos Text', Arial, sans-serif;font-size:40px;font-weight:600">Конец месяца</h3>
+<p style="font-size:28px;line-height:1.4;color:#C9D3E3">Сверяем ведомость кабинета с nómina от gestoría и решаем, переходить ли всем.</p>
+</div>
+</div>
+<div style="display:flex;flex-direction:row;gap:32px;align-items:center"><a href="stand/" style="font-family:'Golos Text', Arial, sans-serif;font-size:36px;font-weight:600;color:#13203A;background:#F29A3A;border-radius:16px;padding:24px 40px;text-decoration:none">Открыть демо-стенд →</a><p style="font-size:30px;line-height:1.4;color:#9FB0C8;width:1000px">Все роли: директор, бухгалтер, прораб, рабочий и клиент — на тестовых данных.</p></div>
+
+</section>
+</div></div>
+<div id="notes" hidden><b>Заметки докладчика</b><span id="notes-t"></span></div>
+<nav id="bar" aria-label="Управление презентацией">
+<button type="button" id="prev" aria-label="Предыдущий слайд">←</button>
+<span id="count" aria-live="polite">1 / 1</span>
+<button type="button" id="next" aria-label="Следующий слайд">→</button>
+<button type="button" id="nt" class="opt" aria-pressed="false" title="Заметки (N)">Заметки</button>
+<button type="button" id="fs" class="opt" title="Полный экран (F)">Полный экран</button>
+<a class="demo" href="stand/">Демо</a>
+</nav>
+<script>
+(function(){
+  var S=[].slice.call(document.querySelectorAll('.slide')),N=["Коротко: это наше приложение для учёта рабочего времени и всего, что вокруг. Дальше покажу его на тестовом месяце — пять рабочих на типовом договоре, как у нас, все цифры посчитаны самой системой.", "Это типичные потери времени в бригаде без единого учёта. Если у нас что-то устроено иначе — поправь формулировки под себя перед показом.", "Всё работает в браузере телефона — ничего не нужно ставить из магазина приложений. Рабочий открывает ссылку и добавляет иконку на экран. Кабинет открывается на компьютере или телефоне. Все три части видят одни и те же данные.", "Показать вживую: открыть демо, роль «Рабочий», нажать «Приехал». Потом открыть кабинет директора — статус уже обновился. Испанским рабочим приложение показывается на испанском.", "Кабинет открывается на компьютере и на телефоне. Слева выбирается период — неделя, месяц, квартал. Данные приходят из приложений рабочих сами, ничего вводить не нужно.", "Чтобы цифры были живыми, я взял типовой договор, как у нас, и посадил на него пятерых тестовых рабочих: Олег, Андрей, Сергей, José и Youssef. За месяц: два праздника (9 и 12 октября), больничный, опоздания, работа в субботу, расходы, четыре объекта.", "Это суммы брутто, без взносов фирмы в Seguridad Social и без удержаний — их по-прежнему считает gestoría. Кабинет даёт ей готовую выгрузку Nóminas: часы, сверхурочные, IRPF по каждому.", "Андрей и Youssef больше всех в сверхурочных — их перевели на кровлю Enforza до дождей, смены до 18:30 и одна суббота. Олег и José почти без переработок. Часы у Youssef меньше, потому что 27 октября он не нажал «Уехал» — эту смену кабинет не считает, пока её не исправят.", "Слева — ведомость за месяц: её можно выгрузить в Excel или PDF с местом для подписи. Справа — карточка одного рабочего: оклад, сверхурочные по часам, одобренные расходы, аванс и выплата остатка. Кнопка «Выплатить остаток» закрывает месяц.", "Ничего из этого никто не проверял вручную: кабинет сам сравнивает отметки с графиком 08:00 и допуском 15 минут, отсутствия, документы рабочих и сроки оплаты счетов. Справа — как это выглядит в кабинете за октябрь: опоздания и переработки по дням.", "Счёт создаётся из карточки объекта: часы бригады уже подставлены по ставке клиенту, остаётся добавить материалы. Номер, IVA и PDF кабинет делает сам. Неоплаченные счета видны в бухгалтерии; «Напомнить» отправляет клиенту письмо или WhatsApp со ссылкой на портал. Сентябрьский счёт по Cartagena на 4 798,38 € просрочен с 7 октября.", "Это рабочая, а не бухгалтерская прибыль: без взносов фирмы в Seguridad Social, транспорта и офиса. Но для сравнения объектов между собой и для решения, по какой ставке брать следующий заказ, её достаточно. В KPI также есть загрузка каждого рабочего, неявки, опоздания и часы бригады по неделям.", "Меньше звонков «как там у нас дела» и меньше споров на приёмке: подписанный parte — это подтверждение выполненных работ. Ссылку можно в любой момент отключить и выдать новую.", "В демо можно переключаться между ролями на стартовой странице и посмотреть, как меняется кабинет: у прораба нет зарплат и счетов, у бухгалтера — плана работ.", "Приложение уже работает и опубликовано, ничего покупать не нужно. Платить придётся только если подключим WhatsApp Cloud API для массовых сообщений — Meta берёт плату за сообщения по своему тарифу. Бесплатных лимитов Firebase хватает с большим запасом для бригады из 16 человек.", "Риска почти нет: пилот идёт параллельно, ничего не отменяем. Критерий успеха простой — ведомость кабинета совпадает с nómina, а прораб и бухгалтер тратят меньше времени. Демо: артефакт «Табель ANK — демо-стенд» (перед показом открыть к нему доступ через Share)."],i=0,deck=document.getElementById('deck'),bar=document.getElementById('bar');
+  function fit(){var w=innerWidth,h=innerHeight,k=Math.min(w/1920,h/1080);deck.style.transform='translate('+((w-1920*k)/2)+'px,'+((h-1080*k)/2)+'px) scale('+k+')'}
+  function show(n,push,force){n=Math.max(0,Math.min(S.length-1,n));if(!force&&n===i&&S[i].classList.contains('on'))return;S[i].classList.remove('on');i=n;S[i].classList.add('on');
+    document.getElementById('count').textContent=(i+1)+' / '+S.length;document.getElementById('prog').style.width=((i+1)/S.length*100)+'%';
+    document.getElementById('notes-t').textContent=N[i]||'—';document.getElementById('prev').disabled=i===0;document.getElementById('next').disabled=i===S.length-1;
+    var hsh='#'+(i+1);if(location.hash!==hsh){try{history[push?'pushState':'replaceState'](null,'',hsh)}catch(e){}}}
+  function go(d){show(i+d,true);wake()}
+  function fromHash(force){var n=parseInt(location.hash.slice(1),10);show(isFinite(n)?n-1:0,false,force===true)}
+  document.getElementById('prev').onclick=function(){go(-1)};document.getElementById('next').onclick=function(){go(1)};
+  var nt=document.getElementById('nt');function notes(){var p=document.getElementById('notes');p.hidden=!p.hidden;nt.setAttribute('aria-pressed',String(!p.hidden))}nt.onclick=notes;
+  function fs(){var d=document;if(d.fullscreenElement||d.webkitFullscreenElement){(d.exitFullscreen||d.webkitExitFullscreen).call(d)}else{var e=d.documentElement;var r=(e.requestFullscreen||e.webkitRequestFullscreen);if(r)try{var p=r.call(e);if(p&&p.catch)p.catch(function(){})}catch(x){}}}
+  document.getElementById('fs').onclick=fs;
+  addEventListener('keydown',function(e){if(e.altKey||e.ctrlKey||e.metaKey)return;var k=e.key;
+    if(k==='ArrowRight'||k==='PageDown'||k===' '||k==='Enter'){e.preventDefault();go(1)}else if(k==='ArrowLeft'||k==='PageUp'||k==='Backspace'){e.preventDefault();go(-1)}
+    else if(k==='Home'){show(0,true)}else if(k==='End'){show(S.length-1,true)}else if(k==='f'||k==='F'||k==='а'||k==='А'){fs()}else if(k==='n'||k==='N'||k==='т'||k==='Т'){notes()}});
+  var sx=null,sy=0;var st=document.getElementById('stage');
+  st.addEventListener('touchstart',function(e){var t=e.touches[0];sx=t.clientX;sy=t.clientY},{passive:true});
+  st.addEventListener('touchend',function(e){if(sx==null)return;var t=e.changedTouches[0],dx=t.clientX-sx,dy=t.clientY-sy;sx=null;if(Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy))go(dx<0?1:-1);else if(Math.abs(dx)<10&&Math.abs(dy)<10){go(t.clientX>innerWidth/3?1:-1)}},{passive:true});
+  st.addEventListener('click',function(e){if(e.target.closest('a'))return;if(e.pointerType==='touch'||('ontouchstart' in window&&e.detail===0))return;go(e.clientX>innerWidth/3?1:-1)});
+  var idle;function wake(){bar.classList.remove('idle');clearTimeout(idle);idle=setTimeout(function(){bar.classList.add('idle')},3500)}
+  addEventListener('mousemove',wake);addEventListener('touchstart',wake,{passive:true});
+  addEventListener('resize',fit);addEventListener('hashchange',fromHash);addEventListener('popstate',fromHash);
+  fit();S[0].classList.add('on');fromHash(true);wake();
+})();
+</script>
+</body>
+</html>
